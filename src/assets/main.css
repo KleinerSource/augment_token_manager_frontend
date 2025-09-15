@@ -1,0 +1,11 @@
+/* Custom styles for Tabler integration */
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  background-color: var(--tblr-bg-surface-secondary);
+}

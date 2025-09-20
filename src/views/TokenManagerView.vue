@@ -1,5 +1,24 @@
 <template>
-  <div class="token-manager">
+  <div v-if="hasPermission" class="token-manager">
+    <!-- 权限检查通过，显示内容 -->
+  </div>
+  <div v-else class="no-permission">
+    <!-- 无权限提示 -->
+    <div class="page-body">
+      <div class="container-xl">
+        <div class="empty">
+          <div class="empty-icon">
+            <i class="bi bi-shield-exclamation" style="font-size: 3rem; color: var(--tblr-warning);"></i>
+          </div>
+          <p class="empty-title">无访问权限</p>
+          <p class="empty-subtitle text-muted">
+            您没有访问 Token 管理功能的权限，请联系管理员获取相应权限。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div v-if="hasPermission" class="token-manager-content">
     <!-- 页面标题 -->
     <div class="page-header d-print-none">
       <div class="container-xl">
@@ -9,25 +28,8 @@
           </div>
           <div class="col-auto ms-auto d-print-none">
             <div class="btn-list">
-              <!-- 视图切换按钮 -->
-              <div class="btn-group" role="group">
-                <button
-                  type="button"
-                  :class="['btn', viewMode === 'card' ? 'btn-primary' : 'btn-outline-primary']"
-                  @click="viewMode = 'card'"
-                  title="卡片视图"
-                >
-                  <i class="bi bi-grid-3x3-gap"></i>
-                </button>
-                <button
-                  type="button"
-                  :class="['btn', viewMode === 'table' ? 'btn-primary' : 'btn-outline-primary']"
-                  @click="viewMode = 'table'"
-                  title="表格视图"
-                >
-                  <i class="bi bi-table"></i>
-                </button>
-              </div>
+
+
               <button @click="validateAllTokens" class="btn btn-warning" title="验证 Token">
                 <i class="bi bi-check-circle me-sm-2"></i>
                 <span class="d-none d-sm-inline">验证 Token</span>
@@ -49,7 +51,7 @@
                 <i class="bi bi-link-45deg me-sm-2"></i>
                 <span class="d-none d-sm-inline">获取 Token</span>
               </button>
-              <button @click="showAddTokenModal" class="btn btn-info" title="添加 Token">
+              <button @click="showAddTokenModal" class="btn btn-primary" title="添加 Token">
                 <i class="bi bi-plus-circle me-sm-2"></i>
                 <span class="d-none d-sm-inline">添加 Token</span>
               </button>
@@ -62,180 +64,14 @@
     <!-- 内容区域 -->
     <div class="page-body">
       <div class="container-xl">
-        <!-- 状态统计窗口 -->
-        <div class="row mb-4">
-          <div class="col-6 col-lg-3">
-            <div
-              class="card card-sm cursor-pointer"
-              :class="{ 'border-success': activeFilter === '正常' }"
-              @click="toggleFilter('正常')"
-            >
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col-auto">
-                    <span class="bg-success text-white avatar">
-                      <i class="bi bi-check-circle"></i>
-                    </span>
-                  </div>
-                  <div class="col">
-                    <div class="font-weight-medium">
-                      正常
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <div class="h1 mb-0 text-success">{{ statusStats.normal }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-6 col-lg-3">
-            <div
-              class="card card-sm cursor-pointer"
-              :class="{ 'border-danger': activeFilter === '失效' }"
-              @click="toggleFilter('失效')"
-            >
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col-auto">
-                    <span class="bg-danger text-white avatar">
-                      <i class="bi bi-x-circle"></i>
-                    </span>
-                  </div>
-                  <div class="col">
-                    <div class="font-weight-medium">
-                      失效
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <div class="h1 mb-0 text-danger">{{ statusStats.expired }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-6 col-lg-3">
-            <div
-              class="card card-sm cursor-pointer"
-              :class="{ 'border-warning': activeFilter === '耗尽' }"
-              @click="toggleFilter('耗尽')"
-            >
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col-auto">
-                    <span class="bg-warning text-white avatar">
-                      <i class="bi bi-exclamation-triangle"></i>
-                    </span>
-                  </div>
-                  <div class="col">
-                    <div class="font-weight-medium">
-                      耗尽
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <div class="h1 mb-0 text-warning">{{ statusStats.depleted }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-6 col-lg-3">
-            <div
-              class="card card-sm cursor-pointer"
-              :class="{ 'border-secondary': activeFilter === '未验证' }"
-              @click="toggleFilter('未验证')"
-            >
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col-auto">
-                    <span class="bg-secondary text-white avatar">
-                      <i class="bi bi-question-circle"></i>
-                    </span>
-                  </div>
-                  <div class="col">
-                    <div class="font-weight-medium">
-                      未验证
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <div class="h1 mb-0 text-secondary">{{ statusStats.unverified }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- 卡片视图 -->
-        <div v-if="viewMode === 'card'" class="row row-cards">
-          <div v-for="token in tokens" :key="token.id" class="col-sm-6 col-lg-4">
-            <div class="card">
-              <div class="card-body">
-                <!-- 卡片头部 -->
-                <div class="d-flex align-items-center mb-3">
-                  <div class="flex-fill">
-                    <div class="font-weight-medium">{{ token.email_note || '未设置备注' }}</div>
-                    <div class="text-muted small">{{ token.created_at }}</div>
-                  </div>
-                  <div class="ms-auto">
-                    <span
-                      :class="['badge', 'cursor-pointer',
-                        isValidating && validatingToken?.id === token.id ? 'bg-warning text-white' :
-                        getTokenStatusClass(token)]"
-                      @click="showValidateModal(token)"
-                      title="点击验证Token状态"
-                    >
-                      <span v-if="isValidating && validatingToken?.id === token.id" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                      {{ isValidating && validatingToken?.id === token.id ? '验证中' : getTokenStatus(token) }}
-                    </span>
-                  </div>
-                </div>
 
-                <!-- 统计信息 -->
-                <div class="row mb-3">
-                  <div class="col-6">
-                    <div class="text-muted small">剩余时长</div>
-                    <div :class="['h4', 'mb-0', getDaysColorClass(token)]">
-                      {{ formatRemainingTime(token) }}
-                    </div>
-                  </div>
-                  <div class="col-6">
-                    <div class="text-muted small">剩余次数</div>
-                    <div :class="['h4', 'mb-0', getCreditsColorClass(token)]">
-                      {{ getRemainingCredits(token) }}
-                    </div>
-                  </div>
-                </div>
 
-                <!-- 操作按钮 -->
-                <div class="btn-list w-100">
-                  <button @click="executeToken(token)" class="btn btn-primary flex-fill">
-                    <i class="bi bi-play-fill me-1"></i>
-                    执行
-                  </button>
-                  <button
-                    @click="refreshToken(token)"
-                    class="btn btn-success"
-                    :disabled="isRefreshing && refreshingToken?.id === token.id"
-                  >
-                    <i
-                      :class="['bi',
-                        isRefreshing && refreshingToken?.id === token.id ? 'bi-arrow-clockwise refresh-spin' : 'bi-arrow-clockwise']"
-                    ></i>
-                  </button>
-                  <button @click="showEditTokenModal(token)" class="btn btn-warning">
-                    <i class="bi bi-pencil-fill"></i>
-                  </button>
-                  <button @click="showDeleteTokenModal(token)" class="btn btn-danger">
-                    <i class="bi bi-trash-fill"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+
+
+
 
         <!-- 表格视图 -->
-        <div v-if="viewMode === 'table'" class="card">
+        <div class="card">
           <div class="table-responsive">
             <table class="table table-vcenter card-table">
               <thead>
@@ -249,14 +85,27 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="token in tokens" :key="token.id">
+                <tr v-if="isLoading">
+                  <td colspan="6" class="text-center py-4 text-muted">
+                    <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                    加载中...
+                  </td>
+                </tr>
+                <tr v-else-if="tokens.length === 0">
+                  <td colspan="6" class="text-center py-4 text-muted">
+                    暂无 Token 数据
+                  </td>
+                </tr>
+                <tr v-else v-for="token in tokens" :key="token.id">
                   <td class="text-muted">{{ token.email_note || '未设置备注' }}</td>
                   <td class="text-muted">{{ token.created_at }}</td>
                   <td :class="getDaysColorClass(token)">
                     {{ formatRemainingTime(token) }}
                   </td>
                   <td :class="getCreditsColorClass(token)">
-                    {{ getRemainingCredits(token) }}
+                    <span :class="{ 'highlighted-metric': tokensWithChanges.has(token.id) }">
+                      {{ getRemainingCredits(token) }}
+                    </span>
                   </td>
                   <td>
                     <span
@@ -285,7 +134,7 @@
                           :class="['bi', 'me-1',
                             isRefreshing && refreshingToken?.id === token.id ? 'bi-arrow-clockwise refresh-spin' : 'bi-arrow-clockwise']"
                         ></i>
-                        {{ isRefreshing && refreshingToken?.id === token.id ? '刷新中...' : '刷新' }}
+                        {{ isRefreshing && refreshingToken?.id === token.id ? '刷新' : '刷新' }}
                       </button>
                       <button @click="showEditTokenModal(token)" class="btn btn-sm btn-warning">
                         <i class="bi bi-pencil-fill me-1"></i>
@@ -301,49 +150,39 @@
               </tbody>
             </table>
           </div>
-        </div>
-
-        <!-- 分页 -->
-        <div class="d-flex align-items-center justify-content-between mt-4">
-          <div class="text-muted">
-            显示 {{ (pagination.page - 1) * pagination.limit + 1 }} 到
-            {{ Math.min(pagination.page * pagination.limit, pagination.total) }} 条，
-            共 {{ pagination.total }} 条记录
-          </div>
-          <div class="d-flex align-items-center">
+          <!-- 分页 -->
+          <div class="card-footer d-flex align-items-center" v-if="pagination.total > 0">
+            <p class="m-0 text-muted">
+              显示第 {{ (pagination.page - 1) * pagination.limit + 1 }} 到
+              {{ Math.min(pagination.page * pagination.limit, pagination.total) }} 条，
+              共 {{ pagination.total }} 条记录
+            </p>
             <ul class="pagination m-0 ms-auto">
-              <li class="page-item" :class="{ disabled: !pagination.has_prev }">
+              <li :class="['page-item', !pagination.has_prev ? 'disabled' : '']">
                 <button
                   class="page-link"
                   @click="loadTokens(pagination.page - 1)"
                   :disabled="!pagination.has_prev"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                    <polyline points="15,6 9,12 15,18"/>
-                  </svg>
+                  <i class="bi bi-chevron-left"></i>
                   上一页
                 </button>
               </li>
               <li
                 v-for="page in getPageNumbers()"
                 :key="page"
-                class="page-item"
-                :class="{ active: page === pagination.page }"
+                :class="['page-item', page === pagination.page ? 'active' : '']"
               >
                 <button class="page-link" @click="loadTokens(page)">{{ page }}</button>
               </li>
-              <li class="page-item" :class="{ disabled: !pagination.has_next }">
+              <li :class="['page-item', !pagination.has_next ? 'disabled' : '']">
                 <button
                   class="page-link"
                   @click="loadTokens(pagination.page + 1)"
                   :disabled="!pagination.has_next"
                 >
                   下一页
-                  <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                    <polyline points="9,6 15,12 9,18"/>
-                  </svg>
+                  <i class="bi bi-chevron-right"></i>
                 </button>
               </li>
             </ul>
@@ -353,6 +192,7 @@
     </div>
 
     <!-- 获取 Token 模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showGetModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -376,7 +216,7 @@
                 <div class="step-divider" :class="{ 'divider-active': getTokenStep > 2 }"></div>
                 <div class="step" :class="{ 'step-active': getTokenStep >= 3 }">
                   <div class="step-number">3</div>
-                  <div class="step-title">获取Token</div>
+                  <div class="step-title">确认并保存</div>
                 </div>
               </div>
             </div>
@@ -411,6 +251,19 @@
                   >
                     <i class="bi bi-box-arrow-up-right"></i>
                   </button>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">邮箱备注（可选）</label>
+                <input
+                  type="text"
+                  v-model="emailNote"
+                  class="form-control"
+                  placeholder="请输入邮箱或备注信息（可选）"
+                >
+                <div class="form-hint mt-1">
+                  <i class="bi bi-info-circle me-1"></i>
+                  用于标识和管理此Token，方便后续查找
                 </div>
               </div>
 
@@ -451,12 +304,13 @@
               </div>
             </div>
 
-            <!-- 第三步：保存Token -->
+            <!-- 第三步：确认信息并保存Token -->
             <div v-if="getTokenStep === 3">
-              <h6 class="mb-3">第三步：保存Token</h6>
+              <h6 class="mb-3">第三步：确认信息并保存Token</h6>
               <div v-if="tokenData.tenant_url">
                 <div class="alert alert-success">
                   <h6>Token获取成功！</h6>
+                  <p class="mb-0">请确认以下信息无误后点击保存</p>
                 </div>
                 <form @submit.prevent="saveToken">
                   <div class="mb-3">
@@ -478,13 +332,30 @@
                     ></textarea>
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">邮箱备注（可选）</label>
+                    <label class="form-label">Portal URL（可编辑）</label>
                     <input
                       type="text"
-                      v-model="emailNote"
+                      v-model="tokenData.portal_url"
                       class="form-control"
-                      placeholder="请输入邮箱或备注信息（可选）"
+                      placeholder="请输入 Portal URL（可选）"
                     >
+                    <div class="form-hint mt-1">
+                      <i class="bi bi-info-circle me-1"></i>
+                      可以在此步骤修改或添加 Portal URL
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">邮箱备注</label>
+                    <input
+                      type="text"
+                      :value="emailNote || '未设置备注'"
+                      class="form-control"
+                      readonly
+                    >
+                    <div class="form-hint mt-1">
+                      <i class="bi bi-info-circle me-1"></i>
+                      如需修改备注，请返回第一步重新设置
+                    </div>
                   </div>
                 </form>
               </div>
@@ -578,8 +449,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 编辑 Token 模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showEditModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -642,8 +515,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 删除确认模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showDeleteModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-sm modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -671,8 +546,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- Token验证确认模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showValidateConfirmModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-sm modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -718,8 +595,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 批量验证确认模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showBatchValidateModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-sm modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -739,34 +618,15 @@
                 </div>
                 <div>
                   <h4 class="alert-title">验证 Token 状态可能会导致 Token 失效！</h4>
-                  <div class="text-muted">请谨慎操作！</div>
+                  <div class="text-muted">使用单线程验证所有 Token 请谨慎操作！</div>
                 </div>
               </div>
             </div>
             <div class="text-muted small">
-              <strong>将要验证：</strong>{{ tokens.length }} 个Token
-              <template v-if="activeFilter">
-                <span class="badge text-bg-primary ms-2">{{ activeFilter }}</span>
-              </template>
-              <template v-else>
-                <span class="badge text-bg-light ms-2">全部状态</span>
-              </template><br>
-              <strong>验证方式：</strong>逐个验证，避免服务器压力
+              <strong>将要验证：</strong>{{ tokens.length }} 个Token<br>
+              <strong>验证方式：</strong>采用单线程验证方式.
             </div>
-            <div v-if="isBatchValidating" class="mt-3">
-              <div class="progress">
-                <div
-                  class="progress-bar progress-bar-striped progress-bar-animated"
-                  role="progressbar"
-                  :style="{ width: ((batchValidateResults.valid + batchValidateResults.invalid + batchValidateResults.failed) / batchValidateResults.total * 100) + '%' }"
-                >
-                  {{ batchValidateResults.valid + batchValidateResults.invalid + batchValidateResults.failed }} / {{ batchValidateResults.total }}
-                </div>
-              </div>
-              <div class="text-center mt-2 small">
-                有效: {{ batchValidateResults.valid }} | 失效: {{ batchValidateResults.invalid }} | 错误: {{ batchValidateResults.failed }}
-              </div>
-            </div>
+
           </div>
           <div class="modal-footer">
             <button type="button" class="btn me-auto" @click="closeBatchValidateModal" :disabled="isBatchValidating">
@@ -786,13 +646,15 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 批量刷新确认模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showBatchRefreshModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-sm modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">确认批量刷新</h5>
+            <h5 class="modal-title">批量刷新</h5>
             <button type="button" class="btn-close" @click="closeBatchRefreshModal"></button>
           </div>
           <div class="modal-body">
@@ -802,37 +664,17 @@
                   <i class="bi bi-info-circle alert-icon" style="font-size: 24px;"></i>
                 </div>
                 <div>
-                  <h4 class="alert-title">即将刷新账户的详细信息！</h4>
-                  <div class="text-muted">此操作将获取最新的余额信息</div>
+                  <h4 class="alert-title">即将受控并发刷新账户的详细信息！</h4>
+                  <div class="text-muted">使用多线程并发请求获取最新余额信息</div>
                 </div>
               </div>
             </div>
             <div class="text-muted small">
-              <strong>将要刷新：</strong>{{ tokens.length }} 个Token
-              <template v-if="activeFilter">
-                <span class="badge text-bg-primary ms-2">{{ activeFilter }}</span>
-              </template>
-              <template v-else>
-                <span class="badge text-bg-light ms-2">全部状态</span>
-              </template><br>
-              <strong>刷新方式：</strong>批量刷新，获取最新状态信息
+              <strong>将要刷新：</strong>{{ tokens.length }} 个Token<br>
+              <strong>刷新方式：</strong>采用多线程刷新.
             </div>
 
-            <!-- 刷新进度 -->
-            <div v-if="isBatchRefreshing" class="mt-3">
-              <div class="progress">
-                <div
-                  class="progress-bar progress-bar-striped progress-bar-animated"
-                  role="progressbar"
-                  :style="{ width: ((batchRefreshResults.success + batchRefreshResults.failed) / batchRefreshResults.total * 100) + '%' }"
-                >
-                  {{ batchRefreshResults.success + batchRefreshResults.failed }} / {{ batchRefreshResults.total }}
-                </div>
-              </div>
-              <div class="text-center mt-2 small">
-                成功: {{ batchRefreshResults.success }} | 失败: {{ batchRefreshResults.failed }}
-              </div>
-            </div>
+
 
 
           </div>
@@ -854,8 +696,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 添加 Token 模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showAddModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -1053,9 +897,11 @@
         </div>
       </div>
     </div>
+    </Transition>
   </div>
 
   <!-- 执行Token模态框 -->
+  <Transition name="modal-animate" appear>
   <div v-if="showExecuteModal" class="modal modal-blur fade show" style="display: block;" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
@@ -1111,11 +957,54 @@
       </div>
     </div>
   </div>
+  </Transition>
+
+  <!-- 右下角悬浮进度窗口 -->
+  <div
+    v-if="showFloatingProgress"
+    class="floating-progress-window"
+    :class="{ 'show': showFloatingProgress }"
+  >
+    <div class="progress-header">
+      <div class="d-flex align-items-center">
+        <div class="spinner-border spinner-border-sm me-2" role="status" v-if="isBatchRefreshing || isBatchValidating">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <strong>{{ progressTitle }}</strong>
+        <button
+          type="button"
+          class="btn-close ms-auto"
+          @click="hideFloatingProgress"
+          v-if="!isBatchRefreshing && !isBatchValidating"
+        ></button>
+      </div>
+    </div>
+
+    <div class="progress-body">
+      <!-- 进度条 -->
+      <div class="progress mb-2">
+        <div
+          class="progress-bar progress-bar-striped progress-bar-animated"
+          role="progressbar"
+          :style="{ width: progressPercentage + '%' }"
+        >
+          {{ progressText }}
+        </div>
+      </div>
+
+
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { toast } from '../utils/toast'
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api'
+import { PermissionManager } from '../types/permissions'
+
+// 权限检查
+const hasPermission = computed(() => PermissionManager.hasTokenManagement())
 
 
 
@@ -1171,6 +1060,10 @@ interface BatchImport {
   jsonData: string
 }
 
+interface TokenSnapshot {
+  credits: number | null
+}
+
 // 响应式数据
 const allTokens = ref<Token[]>([]) // 存储所有Token数据
 const tokens = ref<Token[]>([]) // 当前页显示的Token数据
@@ -1193,15 +1086,7 @@ const isValidating = ref(false)
 const refreshingToken = ref<Token | null>(null)
 const isRefreshing = ref(false)
 
-// 视图模式 - 从本地存储读取，默认为卡片视图
-const viewMode = ref<'card' | 'table'>(
-  (localStorage.getItem('token-manager-view-mode') as 'card' | 'table') || 'card'
-)
 
-// 监听视图模式变化，保存到本地存储
-watch(viewMode, (newMode) => {
-  localStorage.setItem('token-manager-view-mode', newMode)
-}, { immediate: false })
 
 // 执行模态框状态
 const showExecuteModal = ref(false)
@@ -1213,7 +1098,8 @@ const batchValidateResults = ref({
   valid: 0,
   invalid: 0,
   failed: 0,
-  total: 0
+  total: 0,
+  completed: 0  // 已完成的Token数量
 })
 
 // 批量刷新模态框状态
@@ -1222,12 +1108,153 @@ const isBatchRefreshing = ref(false)
 const batchRefreshResults = ref({
   success: 0,
   failed: 0,
-  total: 0
+  total: 0,
+  completed: 0  // 已完成的Token数量
 })
 const isGeneratingUrl = ref(false)
 const lastGenerateTime = ref(0)
 const generateCooldown = 10000 // 10秒冷却时间
 const currentTime = ref(Date.now()) // 当前时间，用于触发响应式更新
+
+// 数据变化检测（用于高亮显示）
+const tokensWithChanges = ref<Set<string>>(new Set())
+const previousTokenData = ref<Map<string, TokenSnapshot>>(new Map())
+
+// 悬浮进度窗口
+const showFloatingProgress = ref(false)
+
+// 悬浮进度窗口计算属性
+const progressTitle = computed(() => {
+  if (isBatchRefreshing.value) return '批量刷新进行中'
+  if (isBatchValidating.value) return '批量验证进行中'
+  return '操作完成'
+})
+
+// 防抖刷新函数
+let refreshDebounceTimer: number | null = null
+const debouncedRefresh = (options: { highlightChanges?: boolean } = {}) => {
+  if (refreshDebounceTimer) {
+    clearTimeout(refreshDebounceTimer)
+  }
+  refreshDebounceTimer = setTimeout(() => {
+    refreshTokens(options)
+  }, 1000) // 1秒防抖
+}
+
+const progressPercentage = computed(() => {
+  if (isBatchRefreshing.value) {
+    return batchRefreshResults.value.total > 0
+      ? (batchRefreshResults.value.completed / batchRefreshResults.value.total * 100)
+      : 0
+  }
+  if (isBatchValidating.value) {
+    return batchValidateResults.value.total > 0
+      ? (batchValidateResults.value.completed / batchValidateResults.value.total * 100)
+      : 0
+  }
+  return 100
+})
+
+const progressText = computed(() => {
+  if (isBatchRefreshing.value) {
+    return `${batchRefreshResults.value.completed} / ${batchRefreshResults.value.total}`
+  }
+  if (isBatchValidating.value) {
+    return `${batchValidateResults.value.completed} / ${batchValidateResults.value.total}`
+  }
+  return '完成'
+})
+
+
+
+// 隐藏悬浮进度窗口
+const hideFloatingProgress = () => {
+  showFloatingProgress.value = false
+}
+
+// 计算即将到期的Token（时间<=1天且次数>45次）
+const getExpiringTokens = () => {
+  return tokens.value.filter(token => {
+    try {
+      // 检查Token状态是否正常
+      if (token.ban_status === '"ACTIVE"' || token.ban_status === '"SUSPENDED"') return false
+
+      // 解析portal_info获取到期时间
+      const portalInfo = parsePortalInfo(token.portal_info)
+      if (!portalInfo || !portalInfo.expiry_date) return false
+
+      const expiryDate = new Date(portalInfo.expiry_date)
+      if (isNaN(expiryDate.getTime())) return false
+
+      // 计算距离到期的时间差（毫秒）
+      const now = new Date()
+      const diffTime = expiryDate.getTime() - now.getTime()
+
+      // 如果已经过期，不提醒
+      if (diffTime <= 0) return false
+
+      // 转换为小时数
+      const diffHours = diffTime / (1000 * 60 * 60)
+
+      // 获取剩余次数
+      const credits = getRemainingCredits(token)
+      const creditsNum = credits === '-' ? 0 : parseInt(credits)
+
+      // 剩余时间 <= 24小时 且 次数 > 45次
+      return diffHours <= 24 && creditsNum > 45
+    } catch (error) {
+      return false
+    }
+  }).map(token => ({
+    id: token.id,
+    email_note: token.email_note,
+    remaining_time: formatRemainingTime(token),
+    remaining_credits: getRemainingCredits(token)
+  }))
+}
+
+// 通过事件总线通知NavigationBar更新到期Token数据
+const updateExpiringTokens = () => {
+  const expiringTokens = getExpiringTokens()
+  const event = new CustomEvent('update-expiring-tokens', {
+    detail: expiringTokens
+  })
+  window.dispatchEvent(event)
+}
+
+const createTokenSnapshot = (token: Token): TokenSnapshot => {
+  const portalInfo = parsePortalInfo(token.portal_info)
+  if (!portalInfo || typeof portalInfo.credits_balance !== 'number') {
+    return { credits: null }
+  }
+
+  return { credits: portalInfo.credits_balance }
+}
+
+// 更新Token数据快照并根据需要标记变化
+const updateTokenSnapshots = (newTokens: Token[], highlightChanges: boolean) => {
+  const nextSnapshots = new Map<string, TokenSnapshot>()
+  const changedTokenIds: string[] = []
+
+  newTokens.forEach(token => {
+    const snapshot = createTokenSnapshot(token)
+    const previousSnapshot = previousTokenData.value.get(token.id)
+
+    if (highlightChanges && previousSnapshot && previousSnapshot.credits !== snapshot.credits) {
+      changedTokenIds.push(token.id)
+    }
+
+    nextSnapshots.set(token.id, snapshot)
+  })
+
+  previousTokenData.value = nextSnapshots
+
+  if (highlightChanges) {
+    tokensWithChanges.value = new Set(changedTokenIds)
+  } else if (tokensWithChanges.value.size) {
+    tokensWithChanges.value = new Set()
+  }
+}
 
 // 计算生成按钮是否在冷却中
 const isGenerateOnCooldown = computed(() => {
@@ -1292,38 +1319,9 @@ const editingToken = ref<{
 })
 const deletingToken = ref<Token | null>(null)
 
-// 筛选相关
-const activeFilter = ref<string | null>(null) // 当前激活的筛选器
 
-// 状态统计计算属性
-const statusStats = computed(() => {
-  const stats = {
-    normal: 0,
-    expired: 0,
-    depleted: 0,
-    unverified: 0
-  }
 
-  allTokens.value.forEach(token => {
-    const status = getTokenStatus(token)
-    switch (status) {
-      case '正常':
-        stats.normal++
-        break
-      case '失效':
-        stats.expired++
-        break
-      case '耗尽':
-        stats.depleted++
-        break
-      case '未验证':
-        stats.unverified++
-        break
-    }
-  })
 
-  return stats
-})
 
 // 获取Token流程相关数据
 const getTokenStep = ref(1)
@@ -1362,6 +1360,10 @@ const canImport = computed(() => {
   }
 })
 
+
+
+
+
 // 生命周期
 onMounted(() => {
   loadTokens()
@@ -1369,12 +1371,19 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopCooldownTimer()
+
+  // 清理防抖定时器
+  if (refreshDebounceTimer) {
+    clearTimeout(refreshDebounceTimer)
+  }
 })
 
 // 方法
-const loadTokens = async (page: number = 1) => {
+const loadTokens = async (page: number = 1, options: { highlightChanges?: boolean } = {}) => {
+  const highlightChanges = options.highlightChanges === true
+
   // 如果已经有数据，只需要更新分页显示
-  if (allTokens.value.length > 0) {
+  if (allTokens.value.length > 0 && !highlightChanges) {
     updatePagination(page)
     return
   }
@@ -1382,39 +1391,28 @@ const loadTokens = async (page: number = 1) => {
   isLoading.value = true
   try {
     // 一次性加载所有数据
-    const response = await fetch(`/api/tokens?limit=10000`)
-    const data: TokenResponse = await response.json()
+    const data = await apiGet<Token[]>(`/api/tokens?limit=10000`)
 
     if (data.success) {
-      allTokens.value = data.data
+      const fetchedTokens = data.data || [] // 当data为null时，使用空数组
+      allTokens.value = fetchedTokens
+      updateTokenSnapshots(fetchedTokens, highlightChanges)
       updatePagination(page)
+      // 更新到期Token通知
+      updateExpiringTokens()
     } else {
-      toast.error('获取Token列表失败')
+      toast.error(data.error || '获取Token列表失败')
     }
   } catch (error) {
-    console.error('获取Token列表失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isLoading.value = false
   }
 }
 
-// 获取筛选后的Token数据
-const getFilteredTokens = () => {
-  if (!activeFilter.value) {
-    return allTokens.value
-  }
-
-  return allTokens.value.filter(token => {
-    const status = getTokenStatus(token)
-    return status === activeFilter.value
-  })
-}
-
 // 更新前端分页显示
 const updatePagination = (page: number) => {
-  const filteredTokens = getFilteredTokens()
-  const total = filteredTokens.length
+  const total = allTokens.value.length
   const limit = pagination.value.limit
   const totalPages = Math.ceil(total / limit) || 1
 
@@ -1426,7 +1424,7 @@ const updatePagination = (page: number) => {
   const endIndex = Math.min(startIndex + limit, total)
 
   // 更新显示的Token数据
-  tokens.value = filteredTokens.slice(startIndex, endIndex)
+  tokens.value = allTokens.value.slice(startIndex, endIndex)
 
   // 更新分页信息
   pagination.value = {
@@ -1439,25 +1437,22 @@ const updatePagination = (page: number) => {
   }
 }
 
-// 切换筛选器
-const toggleFilter = (status: string) => {
-  if (activeFilter.value === status) {
-    // 如果点击的是当前激活的筛选器，则取消筛选
-    activeFilter.value = null
-  } else {
-    // 否则设置新的筛选器
-    activeFilter.value = status
-  }
 
-  // 重新计算分页，回到第一页
-  updatePagination(1)
-}
 
 // 刷新数据（重新从服务器加载）
-const refreshTokens = async () => {
+const refreshTokens = async (options: { highlightChanges?: boolean } = {}) => {
   allTokens.value = [] // 清空缓存
-  activeFilter.value = null // 清空筛选
-  await loadTokens(1) // 重新加载第一页
+  await loadTokens(1, options) // 重新加载第一页
+
+  // 发送数据更新事件，通知其他组件
+  const event = new CustomEvent('tokens-data-updated', {
+    detail: {
+      tokens: allTokens.value,
+      timestamp: new Date(),
+      source: 'TokenManagerView'
+    }
+  })
+  window.dispatchEvent(event)
 }
 
 // 辅助函数
@@ -1529,7 +1524,7 @@ const getRemainingCredits = (token: Token): string => {
   return portalInfo.credits_balance.toString()
 }
 
-const getTokenStatus = (token: Token): '正常' | '失效' | '未验证' | '耗尽' => {
+const getTokenStatus = (token: Token): '正常' | '失效' | '未验证' | '耗尽' | '暂停' => {
   // 检查是否为空数据（未验证状态）
   if ((!token.portal_info || token.portal_info === '{}') &&
       (!token.ban_status || token.ban_status === '{}')) {
@@ -1551,6 +1546,10 @@ const getTokenStatus = (token: Token): '正常' | '失效' | '未验证' | '耗�
     // ban_status为"ACTIVE"表示失效
     if (token.ban_status === '"ACTIVE"') {
       return '失效'
+    }
+    // ban_status为"SUSPENDED"表示暂停
+    if (token.ban_status === '"SUSPENDED"') {
+      return '暂停'
     }
   }
 
@@ -1594,7 +1593,9 @@ const getTokenStatusClass = (token: Token): string => {
     case '未验证':
       return 'bg-secondary text-white'
     case '耗尽':
-      return 'bg-warning text-dark'
+      return 'bg-warning text-white'
+    case '暂停':
+      return 'bg-danger text-white'
     default:
       return 'bg-secondary text-white'
   }
@@ -1640,15 +1641,7 @@ const validateAndNextStep = async () => {
       }
     }
 
-    const response = await fetch('/api/auth/validate-response', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    })
-
-    const data = await response.json()
+    const data = await apiPost('/api/auth/validate-response', payload)
 
     if (data.success && data.data?.access_token) {
       // 保存Token数据，使用用户填入的portal_url
@@ -1663,10 +1656,9 @@ const validateAndNextStep = async () => {
       getTokenStep.value = 3
       toast.success(data.message || '授权验证成功')
     } else {
-      toast.error(data.error || data.message || '授权验证失败')
+      toast.error(data.error || '授权验证失败')
     }
   } catch (error) {
-    console.error('授权验证失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isValidatingResponse.value = false
@@ -1691,27 +1683,18 @@ const saveToken = async () => {
       email_note: emailNote.value
     }
 
-    const response = await fetch('/api/auth/save-token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    })
-
-    const data = await response.json()
+    const data = await apiPost('/api/auth/save-token', payload)
 
     if (data.success) {
       toast.success(data.message || 'Token保存成功')
 
       // 关闭模态框并刷新Token列表
       showGetModal.value = false
-      refreshTokens()
+      await refreshTokens()
     } else {
-      toast.error(data.error || data.message || 'Token保存失败')
+      toast.error(data.error || 'Token保存失败')
     }
   } catch (error) {
-    console.error('Token保存失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isSavingToken.value = false
@@ -1773,7 +1756,8 @@ const validateAllTokens = () => {
     valid: 0,
     invalid: 0,
     failed: 0,
-    total: tokens.value.length
+    total: tokens.value.length,
+    completed: 0
   }
 
   showBatchValidateModal.value = true
@@ -1790,7 +1774,8 @@ const showBatchRefreshConfirm = () => {
   batchRefreshResults.value = {
     success: 0,
     failed: 0,
-    total: 0
+    total: 0,
+    completed: 0
   }
 
   showBatchRefreshModal.value = true
@@ -1839,13 +1824,9 @@ const generateAuthUrl = async () => {
   isGeneratingUrl.value = true
 
   try {
-    const response = await fetch('/api/auth/generate-url', {
-      method: 'GET'
-    })
+    const data = await apiGet('/api/auth/generate-url')
 
-    const data = await response.json()
-
-    if (data.success) {
+    if (data.success && data.data) {
       // 提取授权URL到输入框
       authUrl.value = data.data.auth_url
 
@@ -1861,10 +1842,9 @@ const generateAuthUrl = async () => {
 
       toast.success(data.message || '授权URL生成成功')
     } else {
-      toast.error(data.error || data.message || '授权URL生成失败')
+      toast.error(data.error || '授权URL生成失败')
     }
   } catch (error) {
-    console.error('生成授权URL失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isGeneratingUrl.value = false
@@ -1875,7 +1855,6 @@ const copyAuthUrl = async () => {
   try {
     await navigator.clipboard.writeText(authUrl.value)
   } catch (err) {
-    console.error('复制失败:', err)
   }
 }
 
@@ -1903,7 +1882,6 @@ const copyToken = async () => {
   try {
     await navigator.clipboard.writeText(obtainedToken.value)
   } catch (err) {
-    console.error('复制失败:', err)
   }
 }
 
@@ -1978,11 +1956,13 @@ const addSingleToken = async () => {
 
       toast.success(data.message || 'Token 添加成功')
       closeAddModal()
+
+      // 刷新数据
+      await refreshTokens()
     } else {
       toast.error(data.error || data.message || 'Token 添加失败')
     }
   } catch (error) {
-    console.error('添加Token失败:', error)
     toast.error('网络错误，请重试')
   }
 }
@@ -2119,7 +2099,6 @@ const importBatchTokens = async () => {
       if (error instanceof SyntaxError) {
         toast.error('JSON格式错误，请检查数据格式')
       } else {
-        console.error('批量导入失败:', error)
         toast.error('批量导入失败，请稍后重试')
       }
     } finally {
@@ -2186,6 +2165,11 @@ const executeToken = (token: Token) => {
     return
   }
 
+  if (status === '暂停') {
+    toast.error('Token已暂停，无法执行')
+    return
+  }
+
   if (status === '耗尽') {
     toast.warning('Token次数已耗尽，无法执行')
     return
@@ -2233,7 +2217,6 @@ const executeApplication = async (app: any) => {
     toast.success(`正在启动 ${app.name}...`)
     showExecuteModal.value = false
   } catch (error) {
-    console.error('启动应用失败:', error)
     toast.error(`启动 ${app.name} 失败`)
   } finally {
     isExecuting.value = false
@@ -2246,13 +2229,9 @@ const refreshToken = async (token: Token) => {
   isRefreshing.value = true
 
   try {
-    const response = await fetch(`/api/tokens/${token.id}/refresh`, {
-      method: 'POST'
-    })
+    const data = await apiPost(`/api/tokens/${token.id}/refresh`)
 
-    const data = await response.json()
-
-    if (data.success) {
+    if (data.success && data.data) {
       // 更新本地Token数据
       const index = tokens.value.findIndex(t => t.id === token.id)
       if (index > -1) {
@@ -2261,10 +2240,9 @@ const refreshToken = async (token: Token) => {
 
       toast.success(data.message || 'Token 刷新成功')
     } else {
-      toast.error(data.error || data.message || 'Token 刷新失败')
+      toast.error(data.error || 'Token 刷新失败')
     }
   } catch (error) {
-    console.error('Token刷新失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     // 清除刷新状态
@@ -2293,7 +2271,6 @@ const showEditTokenModal = async (token: Token) => {
       toast.error(data.error || 'Token信息获取失败')
     }
   } catch (error) {
-    console.error('获取Token详情失败:', error)
     toast.error('网络错误，请重试')
   }
 }
@@ -2344,11 +2321,13 @@ const updateToken = async () => {
 
       toast.success(data.message || 'Token 更新成功')
       closeEditModal()
+
+      // 刷新数据
+      await refreshTokens()
     } else {
       toast.error(data.error || data.message || 'Token 更新失败')
     }
   } catch (error) {
-    console.error('更新Token失败:', error)
     toast.error('网络错误，请重试')
   }
 }
@@ -2383,11 +2362,13 @@ const confirmDelete = async () => {
       }
 
       toast.success(data.message || 'Token 删除成功')
+
+      // 刷新数据
+      await refreshTokens()
     } else {
       toast.error(data.error || data.message || 'Token 删除失败')
     }
   } catch (error) {
-    console.error('删除Token失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     closeDeleteModal()
@@ -2443,11 +2424,13 @@ const confirmValidateToken = async () => {
       }
 
       toast.success(data.message || 'Token 验证成功')
+
+      // 刷新Token列表以显示最新数据
+      await refreshTokens()
     } else {
       toast.error(data.error || data.message || 'Token 验证失败')
     }
   } catch (error) {
-    console.error('Token验证失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isValidating.value = false
@@ -2463,26 +2446,35 @@ const closeBatchValidateModal = () => {
       valid: 0,
       invalid: 0,
       failed: 0,
-      total: 0
+      total: 0,
+      completed: 0
     }
   }
 }
 
 const confirmBatchValidate = async () => {
+  // 立即关闭模态框
+  closeBatchValidateModal()
+
+  // 显示悬浮进度窗口
+  showFloatingProgress.value = true
+
   isBatchValidating.value = true
+
+  // 清除之前的数据变化高亮状态
+  tokensWithChanges.value = new Set()
 
   // 重置结果
   batchValidateResults.value = {
     valid: 0,
     invalid: 0,
     failed: 0,
-    total: tokens.value.length
+    total: tokens.value.length,
+    completed: 0
   }
 
-  // 逐个验证Token，添加延迟
-  for (let i = 0; i < tokens.value.length; i++) {
-    const token = tokens.value[i]
-
+  // 创建验证单个Token的函数
+  const validateSingleToken = async (token: Token) => {
     try {
       const response = await fetch(`/api/tokens/${token.id}/validate`, {
         method: 'POST'
@@ -2497,24 +2489,64 @@ const confirmBatchValidate = async () => {
           tokens.value[index] = data.data
         }
 
-        // 根据valid字段判断Token状态
-        if (data.valid) {
-          batchValidateResults.value.valid++
-        } else {
-          batchValidateResults.value.invalid++
+        return {
+          success: true,
+          tokenId: token.id,
+          data: data.data,
+          valid: data.valid
         }
       } else {
-        batchValidateResults.value.failed++
+        return {
+          success: false,
+          tokenId: token.id,
+          error: data.error || data.message
+        }
       }
     } catch (error) {
-      console.error(`Token ${token.id} 验证失败:`, error)
+      return {
+        success: false,
+        tokenId: token.id,
+        error: error instanceof Error ? error.message : '网络错误'
+      }
+    }
+  }
+
+  // 创建带进度跟踪的验证函数
+  const validateSingleTokenWithProgress = async (token: Token) => {
+    const result = await validateSingleToken(token)
+
+    // 更新进度
+    batchValidateResults.value.completed++
+
+    // 更新统计
+    if (result.success) {
+      if (result.valid) {
+        batchValidateResults.value.valid++
+      } else {
+        batchValidateResults.value.invalid++
+      }
+    } else {
       batchValidateResults.value.failed++
     }
 
-    // 添加延迟，避免服务器压力（每个请求间隔500ms）
-    if (i < tokens.value.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 500))
+    return result
+  }
+
+  // 单线程顺序验证，每个Token间隔500ms
+  try {
+    for (let i = 0; i < tokens.value.length; i++) {
+      const token = tokens.value[i]
+
+      // 如果不是第一个Token，添加500ms延迟
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+
+      // 验证单个Token
+      await validateSingleTokenWithProgress(token)
     }
+  } catch (error) {
+    toast.error('批量验证过程中发生错误')
   }
 
   // 验证完成
@@ -2524,10 +2556,18 @@ const confirmBatchValidate = async () => {
   const { valid, invalid, failed, total } = batchValidateResults.value
   toast.success(`批量验证完成！有效: ${valid}, 失效: ${invalid}, 错误: ${failed}, 总计: ${total}`)
 
-  // 延迟关闭模态框
+  // 刷新Token列表以显示最新数据
+  await refreshTokens()
+
+  // 设置数据变化高亮效果，3秒后清除
   setTimeout(() => {
-    closeBatchValidateModal()
-  }, 2000)
+    tokensWithChanges.value = new Set()
+  }, 3000)
+
+  // 3秒后自动隐藏悬浮进度窗口
+  setTimeout(() => {
+    showFloatingProgress.value = false
+  }, 3000)
 }
 
 // 批量刷新相关方法
@@ -2537,25 +2577,34 @@ const closeBatchRefreshModal = () => {
     batchRefreshResults.value = {
       success: 0,
       failed: 0,
-      total: 0
+      total: 0,
+      completed: 0
     }
   }
 }
 
 const confirmBatchRefresh = async () => {
+  // 立即关闭模态框
+  closeBatchRefreshModal()
+
+  // 显示悬浮进度窗口
+  showFloatingProgress.value = true
+
   isBatchRefreshing.value = true
+
+  // 清除之前的数据变化高亮状态
+  tokensWithChanges.value = new Set()
 
   // 重置结果
   batchRefreshResults.value = {
     success: 0,
     failed: 0,
-    total: tokens.value.length
+    total: tokens.value.length,
+    completed: 0
   }
 
-  // 逐个刷新Token，添加延迟
-  for (let i = 0; i < tokens.value.length; i++) {
-    const token = tokens.value[i]
-
+  // 创建刷新单个Token的函数
+  const refreshSingleToken = async (token: Token) => {
     try {
       const response = await fetch(`/api/tokens/${token.id}/refresh`, {
         method: 'POST'
@@ -2570,20 +2619,85 @@ const confirmBatchRefresh = async () => {
           tokens.value[index] = { ...tokens.value[index], ...data.data }
         }
 
-        batchRefreshResults.value.success++
+        return { success: true, tokenId: token.id, data: data.data }
       } else {
-        batchRefreshResults.value.failed++
-        console.error(`Token ${token.id} 刷新失败:`, data.error || data.message)
+        return { success: false, tokenId: token.id, error: data.error || data.message }
       }
     } catch (error) {
+      return { success: false, tokenId: token.id, error: error instanceof Error ? error.message : '网络错误' }
+    }
+  }
+
+  // 创建带进度跟踪的刷新函数
+  const refreshSingleTokenWithProgress = async (token: Token) => {
+    const result = await refreshSingleToken(token)
+
+    // 更新进度
+    batchRefreshResults.value.completed++
+
+    // 更新统计
+    if (result.success) {
+      batchRefreshResults.value.success++
+    } else {
       batchRefreshResults.value.failed++
-      console.error(`Token ${token.id} 刷新错误:`, error)
     }
 
-    // 添加延迟，避免服务器压力
-    if (i < tokens.value.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 500))
+    return result
+  }
+
+  // 控制并发的批量刷新
+  const BATCH_SIZE = 2 // 每批处理2个
+  const BATCH_DELAY = 500 // 每批间隔500ms
+  const MAX_CONCURRENT = 8 // 最大同时工作线程8个
+
+  try {
+    // 将tokens分批处理
+    const tokenBatches = []
+    for (let i = 0; i < tokens.value.length; i += BATCH_SIZE) {
+      tokenBatches.push(tokens.value.slice(i, i + BATCH_SIZE))
     }
+
+    // 控制最大并发数的处理函数
+    const processBatchesWithLimit = async (batches: Token[][], maxConcurrent: number) => {
+      const results: any[] = []
+
+      for (let i = 0; i < batches.length; i += maxConcurrent) {
+        // 取出最多maxConcurrent个批次
+        const currentBatches = batches.slice(i, i + maxConcurrent)
+
+        // 并发处理这些批次
+        const batchPromises = currentBatches.map(async (batch, batchIndex) => {
+          // 如果不是第一批，添加延迟
+          if (i + batchIndex > 0) {
+            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY))
+          }
+
+          // 并发处理批次内的所有token
+          const batchResults = await Promise.allSettled(
+            batch.map(token => refreshSingleTokenWithProgress(token))
+          )
+
+          return batchResults
+        })
+
+        // 等待当前这组批次完成
+        const batchGroupResults = await Promise.allSettled(batchPromises)
+
+        // 收集结果
+        batchGroupResults.forEach(batchGroupResult => {
+          if (batchGroupResult.status === 'fulfilled') {
+            results.push(...batchGroupResult.value)
+          }
+        })
+      }
+
+      return results
+    }
+
+    // 执行分批处理
+    await processBatchesWithLimit(tokenBatches, MAX_CONCURRENT / BATCH_SIZE)
+  } catch (error) {
+    toast.error('批量刷新过程中发生错误')
   }
 
   // 刷新完成
@@ -2591,12 +2705,20 @@ const confirmBatchRefresh = async () => {
 
   // 显示结果
   const { success, failed, total } = batchRefreshResults.value
-  toast.success(`批量刷新完成！成功: ${success}, 失败: ${failed}, 总计: ${total}`)
+  toast.success(`受控并发批量刷新完成！成功: ${success}, 失败: ${failed}, 总计: ${total}`)
 
-  // 延迟关闭模态框
+  // 刷新Token列表以显示最新数据
+  await refreshTokens({ highlightChanges: true })
+
+  // 设置数据变化高亮效果，3秒后清除
   setTimeout(() => {
-    closeBatchRefreshModal()
-  }, 2000)
+    tokensWithChanges.value = new Set()
+  }, 3000)
+
+  // 3秒后自动隐藏悬浮进度窗口
+  setTimeout(() => {
+    showFloatingProgress.value = false
+  }, 3000)
 }
 </script>
 
@@ -2604,40 +2726,6 @@ const confirmBatchRefresh = async () => {
 /* 通用样式 */
 .cursor-pointer {
   cursor: pointer;
-}
-
-/* 刷新按钮旋转动画 */
-.refresh-spin {
-  animation: refresh-rotate 1s linear infinite !important;
-  transform-origin: center center !important;
-  display: inline-block !important;
-}
-
-i.refresh-spin {
-  animation: refresh-rotate 1s linear infinite !important;
-  transform-origin: center center !important;
-  display: inline-block !important;
-}
-
-@keyframes refresh-rotate {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* 浏览器兼容性 */
-@-webkit-keyframes refresh-rotate {
-  0% {
-    -webkit-transform: rotate(0deg);
-    transform: rotate(0deg);
-  }
-  100% {
-    -webkit-transform: rotate(360deg);
-    transform: rotate(360deg);
-  }
 }
 
 /* 拖拽上传样式 */
@@ -2794,56 +2882,159 @@ i.refresh-spin {
     margin-bottom: 24px;
   }
 
-  /* 移动端统计卡片优化 */
-  .card-sm {
-    margin-bottom: 0.75rem;
-  }
 
-  .card-sm .card-body {
-    padding: 0.75rem;
-  }
+}
 
-  .card-sm .h1 {
-    font-size: 1.5rem;
-  }
 
-  .card-sm .font-weight-medium {
+
+  .card-sm .avatar i {
     font-size: 0.875rem;
   }
 
-  .card-sm .text-muted {
-    font-size: 0.75rem;
+/* 小屏幕进一步优化 */
+@media (max-width: 575.98px) {
+  /* 更紧凑的间隔 */
+  .row.mb-4 > [class*="col-"] {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    margin-bottom: 0.5rem;
   }
 
-  .card-sm .avatar {
-    width: 2rem;
-    height: 2rem;
+  /* 更小的卡片内边距 */
+  .card-sm .card-body {
+    padding: 0.5rem;
   }
 
-  .card-sm .avatar i {
-    font-size: 1rem;
+  /* 字体大小调整 */
+  .card-sm .h1 {
+    font-size: 1.25rem;
+  }
+
+  .card-sm .font-weight-medium {
+    font-size: 0.8rem;
   }
 }
 
-/* 中等屏幕优化 */
-@media (max-width: 768px) {
-  .card-sm .row.align-items-center {
-    gap: 0.5rem;
-  }
 
-  .card-sm .col-auto:last-child {
-    text-align: right;
-  }
-}
-
-/* 筛选卡片样式 */
 .cursor-pointer {
   cursor: pointer;
 }
+/* 悬浮进度窗口样式 */
+.floating-progress-window {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 320px;
+  background: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1060;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+}
 
-.cursor-pointer:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
+.floating-progress-window.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.progress-header {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  border-radius: 8px 8px 0 0;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.progress-body {
+  padding: 16px;
+  color: #495057;
+}
+
+
+
+.floating-progress-window .progress {
+  height: 15px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+}
+
+.floating-progress-window .progress-bar {
+  background-color: #0d6efd;
+  font-size: 11px;
+  line-height: 8px;
+  border-radius: 4px;
+}
+
+.floating-progress-window .btn-close {
+  opacity: 0.5;
+}
+
+.floating-progress-window .btn-close:hover {
+  opacity: 1;
+}
+
+/* 数据变化高亮效果样式 */
+.table-success {
+  background-color: rgba(25, 135, 84, 0.15) !important;
+  transition: background-color 0.3s ease;
+}
+
+.card {
+  transition: all 0.3s ease;
+}
+
+.border-success {
+  border-color: #198754 !important;
+}
+
+.bg-success-subtle {
+  background-color: rgba(25, 135, 84, 0.15) !important;
+}
+
+.highlighted-metric {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background-color: rgba(25, 135, 84, 0.32);
+  box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.35);
+  font-weight: 600;
+  animation: metric-highlight-fade 2.6s ease-out forwards;
+}
+
+@keyframes metric-highlight-fade {
+  0% {
+    background-color: rgba(25, 135, 84, 0.45);
+    box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.35);
+  }
+  60% {
+    background-color: rgba(25, 135, 84, 0.18);
+    box-shadow: 0 0 0 8px rgba(25, 135, 84, 0);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+    font-weight: inherit;
+  }
+}
+
+/* 刷新动画 */
+@keyframes refresh-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh-spin {
+  animation: refresh-rotate 1s linear infinite;
+  transform-origin: center center;
+  display: inline-block;
 }
 </style>

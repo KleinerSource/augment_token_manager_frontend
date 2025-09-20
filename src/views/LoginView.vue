@@ -98,20 +98,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from '../utils/toast'
+import { loginRequest, apiGet } from '../utils/api'
+import { PermissionManager, DEFAULT_PERMISSIONS, type LoginResponse } from '../types/permissions'
 
 interface LoginForm {
   username: string
   password: string
   remember_me: boolean
-}
-
-interface LoginResponse {
-  data?: {
-    username: string
-  }
-  message?: string
-  success: boolean
-  error?: string
 }
 
 interface FormErrors {
@@ -197,35 +190,59 @@ const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
 }
 
+// 检查授权状态并设置权限
+const checkLicenseAndSetPermissions = async () => {
+  try {
+    const response = await apiGet('/api/license/status')
+    if (response.success && response.data) {
+      // 根据授权状态设置权限
+      if (response.data.is_valid && response.data.permissions) {
+        PermissionManager.setPermissionsFromLicense(response.data.permissions)
+      } else {
+        // 授权无效时，只保留基础权限
+        PermissionManager.setPermissionsFromLicense(null)
+      }
+    } else {
+      // 检查失败时，只保留基础权限
+      PermissionManager.setPermissionsFromLicense(null)
+    }
+  } catch (error) {
+    console.error('检查授权状态失败:', error)
+    // 检查失败时，只保留基础权限
+    PermissionManager.setPermissionsFromLicense(null)
+  }
+}
+
 const handleLogin = async () => {
   if (!validateForm()) {
     return
   }
   
   isLoading.value = true
-  
+
   try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(loginForm.value)
-    })
-    
-    const data: LoginResponse = await response.json()
-    
+    // 只发送用户名和密码，remember_me是本地功能
+    const loginData = {
+      username: loginForm.value.username,
+      password: loginForm.value.password
+    }
+
+    const data = await loginRequest(loginData)
+
     if (data.success && data.data) {
       // 登录成功
       localStorage.setItem('auth_token', 'logged_in')
       localStorage.setItem('username', data.data.username)
+
+      // 检查授权状态并设置权限
+      await checkLicenseAndSetPermissions()
 
       // 保存或清除记住的登录信息
       saveRememberedCredentials()
 
       toast.success(data.message || '登录成功')
 
-      // 跳转到Token管理页面
+      // 跳转到首页
       router.push('/')
     } else {
       // 登录失败
@@ -233,9 +250,7 @@ const handleLogin = async () => {
       toast.error(errorMsg)
     }
   } catch (error) {
-    console.error('登录请求失败:', error)
-    const errorMsg = '网络错误，请检查网络连接后重试'
-    toast.error(errorMsg)
+    toast.error('网络错误，请检查网络连接后重试')
   } finally {
     isLoading.value = false
   }
@@ -260,17 +275,4 @@ const handleLogin = async () => {
   margin: 0 auto;
 }
 
-.btn-link {
-  color: var(--tblr-muted);
-  text-decoration: none;
-}
-
-.btn-link:hover {
-  color: var(--tblr-primary);
-}
-
-.spinner-border-sm {
-  width: 1rem;
-  height: 1rem;
-}
 </style>

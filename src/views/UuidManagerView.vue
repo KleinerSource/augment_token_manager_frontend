@@ -1,5 +1,24 @@
 <template>
-  <div class="uuid-manager">
+  <div v-if="hasPermission" class="uuid-manager">
+    <!-- 权限检查通过，显示内容 -->
+  </div>
+  <div v-else class="no-permission">
+    <!-- 无权限提示 -->
+    <div class="page-body">
+      <div class="container-xl">
+        <div class="empty">
+          <div class="empty-icon">
+            <i class="bi bi-shield-exclamation" style="font-size: 3rem; color: var(--tblr-warning);"></i>
+          </div>
+          <p class="empty-title">无访问权限</p>
+          <p class="empty-subtitle text-muted">
+            您没有访问 UUID 管理功能的权限，请联系管理员获取相应权限。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div v-if="hasPermission" class="uuid-manager-content">
     <!-- 页面标题 -->
     <div class="page-header d-print-none">
       <div class="container-xl">
@@ -53,7 +72,7 @@
                       {{ uuid.is_enabled ? '启用' : '停用' }}
                     </span>
                   </td>
-                  <td class="text-muted">{{ uuid.days_left }} 天</td>
+                  <td class="text-muted">{{ uuid.days_left }}</td>
                   <td class="text-muted">
                     <div class="small">
                       <div>创建：{{ formatDateTime(uuid.created_at) }}</div>
@@ -81,6 +100,7 @@
     </div>
 
     <!-- 编辑 UUID 模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showEditModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -146,8 +166,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 删除确认模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showDeleteModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-sm modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -182,8 +204,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 添加 UUID 模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showAddModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -233,12 +257,17 @@
         </div>
       </div>
     </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { toast } from '../utils/toast'
+import { PermissionManager } from '../types/permissions'
+
+// 权限检查
+const hasPermission = computed(() => PermissionManager.hasUuidManagement())
 
 interface UuidItem {
   uuid: string
@@ -318,11 +347,9 @@ const loadUuids = async (page: number = 1) => {
       uuids.value = data.data || []
       pagination.value = data.pagination || pagination.value
     } else {
-      console.error('UUID列表加载失败:', data)
       uuids.value = []
     }
   } catch (error) {
-    console.error('UUID列表加载错误:', error)
     uuids.value = []
   } finally {
     isLoading.value = false
@@ -384,7 +411,6 @@ const addUuid = async () => {
       toast.error(data.error || data.message || 'UUID创建失败')
     }
   } catch (error) {
-    console.error('UUID创建失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isCreating.value = false
@@ -410,7 +436,6 @@ const showEditUuidModal = async (uuid: UuidItem) => {
       toast.error(data.error || 'UUID信息获取失败')
     }
   } catch (error) {
-    console.error('获取UUID详情失败:', error)
     toast.error('网络错误，请重试')
   }
 }
@@ -457,7 +482,6 @@ const updateUuid = async () => {
       toast.error(data.error || data.message || 'UUID更新失败')
     }
   } catch (error) {
-    console.error('UUID更新失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isEditing.value = false
@@ -499,7 +523,6 @@ const confirmDelete = async () => {
       toast.error(data.error || data.message || 'UUID删除失败')
     }
   } catch (error) {
-    console.error('UUID删除失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isDeleting.value = false

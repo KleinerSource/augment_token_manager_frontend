@@ -1,5 +1,5 @@
 <template>
-  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+  <div class="toast-container position-fixed top-0 start-0 p-3" style="z-index: 1055;">
     <transition-group name="toast" tag="div">
       <div
         v-for="toast in toasts"
@@ -291,7 +291,7 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.75);
   transition: none;
   display: block;
-  margin-left: auto; /* 右对齐，宽度减少时左侧向右移动，实现从左到右的运动效果 */
+  margin-right: auto; /* 左对齐，宽度减少时右侧向左移动，实现从右到左的运动效果 */
 }
 
 /* 运行中：从当前宽度缓动到 0% */
@@ -326,12 +326,12 @@ onUnmounted(() => {
 }
 
 .toast-enter-from {
-  transform: translateX(100%);
+  transform: translateX(-100%);
   opacity: 0;
 }
 
 .toast-leave-to {
-  transform: translateX(100%);
+  transform: translateX(-100%);
   opacity: 0;
 }
 
@@ -341,7 +341,7 @@ onUnmounted(() => {
 
 /* 悬停效果 */
 .toast:hover {
-  transform: translateX(-5px);
+  transform: translateX(5px);
   transition: transform 0.2s ease;
 }
 

@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { copyFileSync, mkdirSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
@@ -43,26 +43,7 @@ const copyIconsPlugin = () => {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
-  // 加载环境变量
-  const env = loadEnv(mode, process.cwd(), '')
-
-  // 功能模块配置
-  // 开发环境：默认全部启用
-  // 生产环境：默认全部禁用
-  const isDevelopment = mode === 'development'
-
-  const featureFlags = {
-    VITE_ENABLE_EMAIL_SUBSCRIPTION: env.VITE_ENABLE_EMAIL_SUBSCRIPTION === 'true' || (isDevelopment && env.VITE_ENABLE_EMAIL_SUBSCRIPTION !== 'false'),
-    VITE_ENABLE_UUID_MANAGER: env.VITE_ENABLE_UUID_MANAGER === 'true' || (isDevelopment && env.VITE_ENABLE_UUID_MANAGER !== 'false'),
-    VITE_ENABLE_ACTIVATION_CODE_MANAGER: env.VITE_ENABLE_ACTIVATION_CODE_MANAGER === 'true' || (isDevelopment && env.VITE_ENABLE_ACTIVATION_CODE_MANAGER !== 'false')
-  }
-
-  console.log(`🚀 Feature Flags Configuration (${mode} mode):`)
-  console.log('  📧 Email Subscription:', featureFlags.VITE_ENABLE_EMAIL_SUBSCRIPTION ? '✅ Enabled' : '❌ Disabled')
-  console.log('  🔑 UUID Manager:', featureFlags.VITE_ENABLE_UUID_MANAGER ? '✅ Enabled' : '❌ Disabled')
-  console.log('  🎫 Activation Code Manager:', featureFlags.VITE_ENABLE_ACTIVATION_CODE_MANAGER ? '✅ Enabled' : '❌ Disabled')
-
+export default defineConfig(() => {
   return {
     plugins: [
       vue(),
@@ -74,16 +55,12 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url))
       },
     },
-    define: {
-      // 将功能标志注入到应用中
-      __FEATURE_FLAGS__: JSON.stringify(featureFlags)
-    },
     server: {
       host: '0.0.0.0', // 允许外部IP访问
       port: 5173,      // 指定端口
       proxy: {
         '/api': {
-          target: 'https://10.0.0.52:14444',
+          target: 'http://127.0.0.1:8080',
           changeOrigin: true,
           secure: true,
           configure: (proxy, _options) => {
@@ -99,6 +76,21 @@ export default defineConfig(({ mode }) => {
           },
         }
       }
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          // 强制所有代码合并到单一文件
+          manualChunks: () => 'index',
+          // 所有 CSS 合并到一个带哈希的 index 文件
+          assetFileNames: 'assets/index-[hash][extname]',
+          // 所有 JS 合并到一个带哈希的 index 文件
+          entryFileNames: 'assets/index-[hash].js',
+          chunkFileNames: 'assets/index-[hash].js'
+        }
+      },
+      // 禁用 CSS 代码分割
+      cssCodeSplit: false
     }
   }
 })

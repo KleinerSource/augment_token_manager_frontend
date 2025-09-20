@@ -21,33 +21,16 @@
       <!-- 导航菜单 + 用户信息容器 -->
       <div class="nav-container d-flex align-items-center ms-auto flex-nowrap">
         <div class="nav-menu d-flex align-items-center flex-nowrap">
-          <router-link to="/" class="nav-link px-3" active-class="active">
-            <span class="nav-link-icon me-2">
-              <i class="bi bi-key" style="font-size: 1.25rem;"></i>
-            </span>
-            <span class="nav-link-title">Token 管理</span>
-          </router-link>
           <router-link
-            v-if="isActivationCodeManagerEnabled()"
-            to="/activation"
+            v-if="hasComprehensiveManagement"
+            to="/"
             class="nav-link px-3"
             active-class="active"
           >
             <span class="nav-link-icon me-2">
-              <i class="bi bi-credit-card" style="font-size: 1.25rem;"></i>
+              <i class="bi bi-grid" style="font-size: 1.25rem;"></i>
             </span>
-            <span class="nav-link-title">激活码管理</span>
-          </router-link>
-          <router-link
-            v-if="isUuidManagerEnabled()"
-            to="/uuid"
-            class="nav-link px-3"
-            active-class="active"
-          >
-            <span class="nav-link-icon me-2">
-              <i class="bi bi-fingerprint" style="font-size: 1.25rem;"></i>
-            </span>
-            <span class="nav-link-title">UUID 管理</span>
+            <span class="nav-link-title">综合管理</span>
           </router-link>
         </div>
 
@@ -86,8 +69,154 @@
                   <div class="token-info">
                     <div class="token-email">{{ token.email_note || '未设置备注' }}</div>
                     <div class="token-stats">
-                      <span class="time-badge">{{ formatRemainingTime(token) }}</span>
-                      <span class="credits-badge">{{ getRemainingCredits(token) }}次</span>
+                      <span class="time-badge">{{ token.remaining_time }}</span>
+                      <span class="credits-badge">{{ token.remaining_credits }}次</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 图表图标 -->
+        <div class="nav-item dropdown me-3" ref="chartDropdownRef">
+          <button
+            @click="toggleChartDropdown"
+            class="nav-link d-flex align-items-center p-1 border-0 bg-transparent position-relative chart-icon-btn"
+            aria-label="查看图表"
+          >
+            <!-- 实时迷你图表 -->
+            <div class="mini-chart-container">
+              <div class="mini-chart-frame">
+                <svg width="40" height="20" viewBox="0 0 40 20" class="mini-chart">
+                  <!-- 背景网格 -->
+                  <defs>
+                    <pattern id="grid" width="5" height="4" patternUnits="userSpaceOnUse">
+                      <path d="M 5 0 L 0 0 0 4" fill="none" stroke="currentColor" stroke-width="0.15" opacity="0.08"/>
+                    </pattern>
+                  </defs>
+                  <rect width="40" height="20" fill="url(#grid)"/>
+
+                  <!-- 显示3条账号数据趋势曲线 -->
+                  <!-- 有效Token趋势曲线 -->
+                  <path
+                    :d="validTokensPath"
+                    stroke="#28a745"
+                    stroke-width="1"
+                    fill="none"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    opacity="0.9"
+                  />
+                  <!-- 即将到期Token趋势曲线 -->
+                  <path
+                    :d="expiringTokensPath"
+                    stroke="#ffc107"
+                    stroke-width="1"
+                    fill="none"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    opacity="0.9"
+                  />
+                  <!-- 已失效Token趋势曲线 -->
+                  <path
+                    :d="invalidTokensPath"
+                    stroke="#dc3545"
+                    stroke-width="1"
+                    fill="none"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    opacity="0.9"
+                  />
+
+                  <!-- 当前数值点 -->
+                  <circle cx="36" :cy="getPointY(currentStats.validTokens)" r="0.8" fill="#28a745" opacity="0.9"/>
+                  <circle cx="36" :cy="getPointY(currentStats.expiringTokens)" r="0.8" fill="#ffc107" opacity="0.9"/>
+                  <circle cx="36" :cy="getPointY(currentStats.invalidTokens)" r="0.8" fill="#dc3545" opacity="0.9"/>
+
+                  <!-- 右上角居中显示有效总次数 -->
+                  <text x="20" y="15" font-size="12" fill="currentColor" font-weight="bold" text-anchor="middle" opacity="0.95">{{ formatCredits(currentStats.totalCredits) }}</text>
+                </svg>
+              </div>
+            </div>
+          </button>
+
+          <!-- 图表下拉菜单 -->
+          <div
+            class="dropdown-menu dropdown-menu-end chart-dropdown"
+            :class="{ 'show': isChartDropdownOpen }"
+          >
+            <div class="chart-dropdown-header">
+              <h6 class="dropdown-header d-flex align-items-center">
+                <i class="bi bi-bar-chart me-2"></i>
+                综合统计图表
+              </h6>
+              <button type="button" class="btn-close btn-close-sm" @click="closeChartDropdown"></button>
+            </div>
+
+            <div class="chart-dropdown-body">
+              <!-- 时间范围切换 -->
+              <div class="chart-controls mb-3 d-flex justify-content-end">
+                <div class="btn-group">
+                  <button
+                    @click="setZoomLevel('7days')"
+                    class="btn btn-sm"
+                    :class="zoomLevel === '7days' ? 'btn-primary' : 'btn-outline-primary'"
+                  >
+                    <i class="bi bi-calendar-week me-1"></i>
+                    7天
+                  </button>
+                  <button
+                    @click="setZoomLevel('1day')"
+                    class="btn btn-sm"
+                    :class="zoomLevel === '1day' ? 'btn-primary' : 'btn-outline-primary'"
+                  >
+                    <i class="bi bi-calendar-day me-1"></i>
+                    1天
+                  </button>
+                </div>
+              </div>
+
+              <!-- Token数量趋势图 -->
+              <div class="chart-section mb-4">
+                <h6 class="chart-title">
+                  <i class="bi bi-graph-up me-2"></i>
+                  Token数量趋势 ({{ zoomLevel === '7days' ? '最近7天' : '最近24小时' }})
+                </h6>
+                <div class="chart-container-mini">
+                  <Line
+                    v-if="tokenCountChartData.labels.length > 0"
+                    :key="`token-chart-${zoomLevel}`"
+                    :data="tokenCountChartData"
+                    :options="tokenCountChartOptions"
+                  />
+                  <div v-else class="d-flex align-items-center justify-content-center h-100 text-muted">
+                    <div class="text-center">
+                      <i class="bi bi-graph-up" style="font-size: 1.2rem;"></i>
+                      <div class="mt-1 small">暂无历史数据</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 有效次数趋势图 -->
+              <div class="chart-section">
+                <h6 class="chart-title">
+                  <i class="bi bi-calculator me-2"></i>
+                  有效次数趋势 ({{ zoomLevel === '7days' ? '最近7天' : '最近24小时' }})
+                </h6>
+                <div class="chart-container-mini">
+                  <Line
+                    v-if="creditsChartData.labels.length > 0"
+                    :key="`credits-chart-${zoomLevel}`"
+                    :data="creditsChartData"
+                    :options="creditsChartOptions"
+                  />
+                  <div v-else class="d-flex align-items-center justify-content-center h-100 text-muted">
+                    <div class="text-center">
+                      <i class="bi bi-calculator" style="font-size: 1.2rem;"></i>
+                      <div class="mt-1 small">暂无历史数据</div>
                     </div>
                   </div>
                 </div>
@@ -117,6 +246,51 @@
             class="dropdown-menu dropdown-menu-end"
             :class="{ 'show': isDropdownOpen }"
           >
+            <h6 class="dropdown-header">管理功能</h6>
+            <router-link
+              v-if="hasTokenManagement"
+              to="/tokens"
+              class="dropdown-item"
+              @click="closeDropdown"
+            >
+              <i class="bi bi-key dropdown-item-icon"></i>
+              Token 管理
+            </router-link>
+            <router-link
+              v-if="hasActivationCodeManagement"
+              to="/activation"
+              class="dropdown-item"
+              @click="closeDropdown"
+            >
+              <i class="bi bi-credit-card dropdown-item-icon"></i>
+              激活码管理
+            </router-link>
+            <router-link
+              v-if="hasUuidManagement"
+              to="/uuid"
+              class="dropdown-item"
+              @click="closeDropdown"
+            >
+              <i class="bi bi-fingerprint dropdown-item-icon"></i>
+              UUID 管理
+            </router-link>
+            <div class="dropdown-divider"></div>
+            <button
+              v-if="needsActivation"
+              @click="showActivation"
+              class="dropdown-item text-warning"
+            >
+              <i class="bi bi-shield-exclamation dropdown-item-icon"></i>
+              激活授权
+            </button>
+            <button
+              v-if="hasValidLicense"
+              @click="showLicenseInfo"
+              class="dropdown-item text-success"
+            >
+              <i class="bi bi-shield-check dropdown-item-icon"></i>
+              授权信息
+            </button>
             <button @click="handleLogout" class="dropdown-item">
               <i class="bi bi-box-arrow-right dropdown-item-icon"></i>
               登出
@@ -127,57 +301,616 @@
     </div>
   </header>
 
+  <!-- 授权激活模态框 -->
+  <div
+    v-if="showActivationModal"
+    class="modal modal-blur fade show"
+    style="display: block;"
+    @click.self="closeActivationModal"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-shield-check me-2"></i>
+            激活授权
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            @click="closeActivationModal"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-4">
+            <label class="form-label">机器码</label>
+            <div class="input-group">
+              <input
+                type="text"
+                class="form-control font-monospace"
+                :value="machineCode"
+                readonly
+                placeholder="正在获取机器码..."
+              >
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                @click="copyMachineCode"
+                :disabled="!machineCode"
+              >
+                <i class="bi bi-copy"></i>
+              </button>
+            </div>
+            <div class="form-hint">
+              请将此机器码提供给管理员以获取授权码
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">授权码</label>
+            <textarea
+              v-model="licenseCode"
+              class="form-control font-monospace"
+              rows="4"
+              placeholder="请输入授权码..."
+              :disabled="isActivating"
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn me-auto"
+            @click="closeActivationModal"
+            :disabled="isActivating"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            @click="activateLicense"
+            :disabled="isActivating || !licenseCode.trim()"
+          >
+            <span v-if="isActivating" class="spinner-border spinner-border-sm me-2"></span>
+            <i v-else class="bi bi-shield-check me-2"></i>
+            {{ isActivating ? '激活中...' : '激活' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 授权信息模态框 -->
+  <div
+    v-if="showLicenseInfoModal"
+    class="modal modal-blur fade show"
+    style="display: block;"
+    @click.self="closeLicenseInfoModal"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-shield-check me-2 text-success"></i>
+            授权信息
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            @click="closeLicenseInfoModal"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div v-if="licenseStatus">
+            <!-- 授权状态卡片 -->
+            <div class="mb-4">
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="mb-0">
+                  <i class="bi bi-shield-check me-2"></i>
+                  授权状态
+                </h6>
+                <div class="d-flex align-items-center gap-2">
+                  <span
+                    :class="['badge badge-lg text-white', licenseStatus.is_valid ? 'bg-success' : 'bg-danger']"
+                  >
+                    <i :class="['bi', licenseStatus.is_valid ? 'bi-check-circle' : 'bi-x-circle']" class="me-1"></i>
+                    {{ licenseStatus.is_valid ? '有效' : '无效' }}
+                  </span>
+                  <span v-if="licenseStatus.is_expired" class="badge badge-lg bg-warning text-white">
+                    <i class="bi bi-clock me-1"></i>
+                    已过期
+                  </span>
+                </div>
+              </div>
+
+              <!-- 时间信息 -->
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <div class="text-center p-3 bg-light rounded">
+                    <div class="h2 mb-1 text-primary">{{ licenseStatus.days_left }}</div>
+                    <div class="text-muted small">剩余天数</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="text-center p-3 bg-light rounded">
+                    <div class="small text-muted mb-1">到期时间</div>
+                    <div class="fw-bold">
+                      {{ licenseStatus.expires_at ? new Date(licenseStatus.expires_at).toLocaleDateString() : '未设置' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 权限信息 -->
+            <div class="mb-4">
+              <h6 class="mb-3">
+                <i class="bi bi-key me-2"></i>
+                授权权限
+              </h6>
+              <div class="d-flex flex-wrap gap-2">
+                <span
+                  v-for="permission in licenseStatus.permissions"
+                  :key="permission"
+                  class="badge bg-primary-lt text-primary px-3 py-2"
+                >
+                  <i class="bi bi-check-circle me-1"></i>
+                  {{ permission }}
+                </span>
+                <span v-if="!licenseStatus.permissions || licenseStatus.permissions.length === 0"
+                      class="badge bg-secondary-lt text-secondary px-3 py-2">
+                  <i class="bi bi-dash-circle me-1"></i>
+                  无特殊权限
+                </span>
+              </div>
+            </div>
+
+            <!-- 状态信息 -->
+            <div class="alert alert-info mb-0">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-info-circle me-2"></i>
+                <div>{{ licenseStatus.message }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn me-auto"
+            @click="closeLicenseInfoModal"
+          >
+            关闭
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            @click="showDeactivateConfirm"
+            :disabled="isDeactivating"
+          >
+            <i class="bi bi-shield-x me-2"></i>
+            反激活
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 反激活确认模态框 -->
+  <div
+    v-if="showDeactivateConfirmModal"
+    class="modal modal-blur fade show"
+    style="display: block;"
+    @click.self="closeDeactivateConfirm"
+  >
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
+            确认反激活
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            @click="closeDeactivateConfirm"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center">
+            <div class="mb-3">
+              <i class="bi bi-shield-x text-danger" style="font-size: 3rem;"></i>
+            </div>
+            <h6 class="mb-3">确定要反激活当前授权吗？</h6>
+            <p class="text-muted mb-0">
+              反激活后将失去所有高级功能权限，只能使用基础的 Token 管理功能。
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn me-auto"
+            @click="closeDeactivateConfirm"
+            :disabled="isDeactivating"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            @click="deactivateLicense"
+            :disabled="isDeactivating"
+          >
+            <span v-if="isDeactivating" class="spinner-border spinner-border-sm me-2"></span>
+            <i v-else class="bi bi-shield-x me-2"></i>
+            {{ isDeactivating ? '反激活中...' : '确认反激活' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from '../utils/toast'
-import { isUuidManagerEnabled, isActivationCodeManagerEnabled } from '../types/feature-flags'
+import { logoutRequest, apiGet, apiPost } from '../utils/api'
+import { PermissionManager } from '../types/permissions'
+import { Line } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  type ChartOptions
+} from 'chart.js'
+import zoomPlugin from 'chartjs-plugin-zoom'
 
-// Token类型定义
-interface Token {
+// 注册 Chart.js 组件
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  zoomPlugin
+)
+
+// 简化的Token类型定义（仅用于props）
+interface ExpiringToken {
   id: string
   email_note: string
-  portal_info: string
-  ban_status: string
-  created_at: string
+  remaining_time: string
+  remaining_credits: string
 }
+
+// 到期Token状态
+const expiringTokens = ref<ExpiringToken[]>([])
 
 const router = useRouter()
 const username = ref<string>('')
 const isDropdownOpen = ref<boolean>(false)
 const dropdownRef = ref<HTMLElement>()
 
+// 权限检查计算属性
+const hasComprehensiveManagement = computed(() => PermissionManager.hasComprehensiveManagement())
+const hasTokenManagement = computed(() => PermissionManager.hasTokenManagement())
+const hasActivationCodeManagement = computed(() => PermissionManager.hasActivationCodeManagement())
+const hasUuidManagement = computed(() => PermissionManager.hasUuidManagement())
+
+// 授权状态相关
+const licenseStatus = ref<any>(null)
+const showActivationModal = ref(false)
+const machineCode = ref('')
+const licenseCode = ref('')
+const isActivating = ref(false)
+const isLoadingMachineCode = ref(false)
+
+// 检查授权状态
+const checkLicenseStatus = async () => {
+  try {
+    const response = await apiGet('/api/license/status')
+    if (response.success) {
+      licenseStatus.value = response.data
+
+      // 根据授权状态设置权限
+      if (response.data.is_valid && response.data.permissions) {
+        PermissionManager.setPermissionsFromLicense(response.data.permissions)
+      } else {
+        // 授权无效时，只保留基础权限
+        PermissionManager.setPermissionsFromLicense(null)
+      }
+    }
+  } catch (error) {
+    console.error('检查授权状态失败:', error)
+    // 检查失败时，只保留基础权限
+    PermissionManager.setPermissionsFromLicense(null)
+  }
+}
+
+// 计算是否需要显示激活按钮
+const needsActivation = computed(() => {
+  return licenseStatus.value && !licenseStatus.value.is_valid
+})
+
+// 计算是否需要显示授权信息按钮
+const hasValidLicense = computed(() => {
+  return licenseStatus.value && licenseStatus.value.is_valid
+})
+
+// 授权信息模态框相关
+const showLicenseInfoModal = ref(false)
+const isDeactivating = ref(false)
+
+// 反激活确认模态框
+const showDeactivateConfirmModal = ref(false)
+
 // 到期提醒相关状态
-const tokens = ref<Token[]>([])
 const showExpiringPopover = ref<boolean>(false)
 const bellRef = ref<HTMLElement>()
+
+// 图表下拉菜单相关状态
+const isChartDropdownOpen = ref<boolean>(false)
+const chartDropdownRef = ref<HTMLElement>()
+
+// 图表相关数据
+const zoomLevel = ref<'7days' | '1day'>(
+  (localStorage.getItem('chart-zoom-level') as '7days' | '1day') || '7days'
+)
+
+// 当前统计数据（用于mini统计显示）
+const currentStats = ref({
+  validTokens: 0,
+  expiringTokens: 0,
+  invalidTokens: 0,
+  totalCredits: 0
+})
+
+// 3条曲线的路径数据
+const validTokensPath = ref<string>('')
+const expiringTokensPath = ref<string>('')
+const invalidTokensPath = ref<string>('')
+
+// 历史数据用于绘制曲线（保存最近的几个数据点）
+const miniChartHistory = ref<{
+  valid: number[],
+  expiring: number[],
+  invalid: number[]
+}>({
+  valid: [],
+  expiring: [],
+  invalid: []
+})
+
+// Token数量图表数据
+const tokenCountChartData = ref({
+  labels: [] as string[],
+  datasets: [
+    {
+      label: '有效',
+      data: [] as number[],
+      borderColor: '#28a745',
+      backgroundColor: 'rgba(40, 167, 69, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: '#28a745',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2
+    },
+    {
+      label: '即将到期',
+      data: [] as number[],
+      borderColor: '#ffc107',
+      backgroundColor: 'rgba(255, 193, 7, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: '#ffc107',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2
+    },
+    {
+      label: '已失效',
+      data: [] as number[],
+      borderColor: '#dc3545',
+      backgroundColor: 'rgba(220, 53, 69, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: '#dc3545',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2
+    }
+  ]
+})
+
+// 有效次数图表数据
+const creditsChartData = ref({
+  labels: [] as string[],
+  datasets: [
+    {
+      label: '有效次数',
+      data: [] as number[],
+      borderColor: '#007bff',
+      backgroundColor: 'rgba(0, 123, 255, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: '#007bff',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2
+    }
+  ]
+})
+
+// Token数量图表配置
+const tokenCountChartOptions = computed((): ChartOptions<'line'> => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'top' as const,
+      labels: {
+        usePointStyle: true,
+        padding: 20,
+        font: {
+          size: 12
+        }
+      }
+    },
+    tooltip: {
+      mode: 'index',
+      intersect: false,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleColor: '#ffffff',
+      bodyColor: '#ffffff',
+      borderColor: '#ffffff',
+      borderWidth: 1
+    }
+  },
+  scales: {
+    x: {
+      display: true,
+      grid: {
+        display: false
+      },
+      ticks: {
+        font: {
+          size: 11
+        }
+      }
+    },
+    y: {
+      display: true,
+      beginAtZero: true,
+      grid: {
+        color: 'rgba(0, 0, 0, 0.1)'
+      },
+      ticks: {
+        font: {
+          size: 11
+        }
+      }
+    }
+  },
+  interaction: {
+    mode: 'nearest',
+    axis: 'x',
+    intersect: false
+  }
+}))
+
+// 有效次数图表配置
+const creditsChartOptions = computed((): ChartOptions<'line'> => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false
+    },
+    tooltip: {
+      mode: 'index',
+      intersect: false,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleColor: '#ffffff',
+      bodyColor: '#ffffff',
+      borderColor: '#ffffff',
+      borderWidth: 1
+    }
+  },
+  scales: {
+    x: {
+      display: true,
+      grid: {
+        display: false
+      },
+      ticks: {
+        font: {
+          size: 11
+        }
+      }
+    },
+    y: {
+      display: true,
+      beginAtZero: true,
+      grid: {
+        color: 'rgba(0, 0, 0, 0.1)'
+      },
+      ticks: {
+        font: {
+          size: 11
+        }
+      }
+    }
+  },
+  interaction: {
+    mode: 'nearest',
+    axis: 'x',
+    intersect: false
+  }
+}))
+
+// 监听到期Token更新事件
+const handleExpiringTokensUpdate = (event: CustomEvent) => {
+  expiringTokens.value = event.detail || []
+}
 
 onMounted(() => {
   // 获取用户名
   const storedUsername = localStorage.getItem('username')
   username.value = storedUsername || 'Admin'
 
-  // 添加全局点击事件监听器
+  // 添加全局点击事件监听器（支持触摸设备）
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('touchstart', handleClickOutside)
 
-  // 加载Token数据
-  loadTokens()
+  // 监听到期Token更新事件
+  window.addEventListener('update-expiring-tokens', handleExpiringTokensUpdate as EventListener)
 
-  // 定时刷新Token数据（每5分钟）
-  setInterval(loadTokens, 5 * 60 * 1000)
+  // 初始化图表数据
+  loadChartData()
+
+  // 初始显示当前数据
+  updateChartDisplay()
+
+  // 检查授权状态
+  checkLicenseStatus()
 })
 
 onUnmounted(() => {
   // 清理事件监听器
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('touchstart', handleClickOutside)
+  window.removeEventListener('update-expiring-tokens', handleExpiringTokensUpdate as EventListener)
 })
 
 // 切换下拉菜单显示状态
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value
+}
+
+// 关闭下拉菜单
+const closeDropdown = () => {
+  isDropdownOpen.value = false
 }
 
 // 处理点击外部区域关闭下拉菜单和悬浮窗
@@ -188,120 +921,25 @@ const handleClickOutside = (event: Event) => {
   if (bellRef.value && !bellRef.value.contains(event.target as Node)) {
     showExpiringPopover.value = false
   }
-}
-
-// 加载Token数据
-const loadTokens = async () => {
-  try {
-    const response = await fetch('/api/tokens?limit=10000')
-
-    if (response.ok) {
-      const data = await response.json()
-      if (data.success) {
-        tokens.value = data.data || []
-        console.log('加载Token数据成功:', tokens.value.length, '个Token')
-      }
-    }
-  } catch (error) {
-    console.error('加载Token数据失败:', error)
+  if (chartDropdownRef.value && !chartDropdownRef.value.contains(event.target as Node)) {
+    isChartDropdownOpen.value = false
   }
 }
 
-// 计算剩余天数和小时数
-const calculateRemainingTime = (token: Token): { days: number, hours: number, totalDays: number } => {
-  try {
-    const portalInfo = JSON.parse(token.portal_info)
-    if (!portalInfo || !portalInfo.expiry_date) return { days: 0, hours: 0, totalDays: 0 }
-
-    const expiryDate = new Date(portalInfo.expiry_date)
-    if (isNaN(expiryDate.getTime())) return { days: 0, hours: 0, totalDays: 0 }
-
-    const now = new Date()
-    const diffTime = expiryDate.getTime() - now.getTime()
-
-    if (diffTime <= 0) return { days: 0, hours: 0, totalDays: 0 }
-
-    const totalHours = Math.floor(diffTime / (1000 * 60 * 60))
-    const days = Math.floor(totalHours / 24)
-    const hours = totalHours % 24
-    const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    return { days, hours, totalDays }
-  } catch {
-    return { days: 0, hours: 0, totalDays: 0 }
+// 图表下拉菜单控制
+const toggleChartDropdown = async () => {
+  isChartDropdownOpen.value = !isChartDropdownOpen.value
+  if (isChartDropdownOpen.value) {
+    // 打开时刷新数据
+    await loadChartData()
   }
 }
 
-// 格式化剩余时间显示
-const formatRemainingTime = (token: Token): string => {
-  const timeInfo = calculateRemainingTime(token)
-  if (timeInfo.totalDays === 0) return '-'
-
-  if (timeInfo.days === 0) {
-    return `${timeInfo.hours}小时`
-  } else if (timeInfo.hours === 0) {
-    return `${timeInfo.days}天`
-  } else {
-    return `${timeInfo.days}天${timeInfo.hours}小时`
-  }
+const closeChartDropdown = () => {
+  isChartDropdownOpen.value = false
 }
 
-// 获取剩余次数
-const getRemainingCredits = (token: Token): string => {
-  try {
-    const portalInfo = JSON.parse(token.portal_info)
-    if (!portalInfo || portalInfo.credits_balance === undefined) return '-'
-    return portalInfo.credits_balance.toString()
-  } catch {
-    return '-'
-  }
-}
 
-// 计算即将到期的Token（时间<=1天且次数>45次）
-const expiringTokens = computed(() => {
-  const result = tokens.value.filter(token => {
-    try {
-      // 检查Token状态是否正常
-      if (token.ban_status === '"ACTIVE"') return false
-
-      // 解析portal_info获取到期时间
-      const portalInfo = JSON.parse(token.portal_info)
-      if (!portalInfo || !portalInfo.expiry_date) return false
-
-      const expiryDate = new Date(portalInfo.expiry_date)
-      if (isNaN(expiryDate.getTime())) return false
-
-      // 计算距离到期的时间差（毫秒）
-      const now = new Date()
-      const diffTime = expiryDate.getTime() - now.getTime()
-
-      // 如果已经过期，不提醒
-      if (diffTime <= 0) return false
-
-      // 转换为小时数
-      const diffHours = diffTime / (1000 * 60 * 60)
-
-      // 获取剩余次数
-      const credits = getRemainingCredits(token)
-      const creditsNum = credits === '-' ? 0 : parseInt(credits)
-
-      // 剩余时间 <= 24小时 且 次数 > 45次
-      const isExpiring = diffHours <= 24 && creditsNum > 45
-
-      if (isExpiring) {
-        console.log('发现即将到期Token:', token.email_note, '剩余小时:', Math.floor(diffHours), '剩余次数:', creditsNum, '到期时间:', portalInfo.expiry_date)
-      }
-
-      return isExpiring
-    } catch (error) {
-      console.error('解析Token信息失败:', error, token)
-      return false
-    }
-  })
-
-  console.log('总Token数:', tokens.value.length, '即将到期Token数:', result.length)
-  return result
-})
 
 // 切换到期提醒悬浮窗
 const toggleExpiringPopover = () => {
@@ -313,26 +951,153 @@ const closeExpiringPopover = () => {
   showExpiringPopover.value = false
 }
 
+// 显示激活模态框
+const showActivation = async () => {
+  isDropdownOpen.value = false
+  showActivationModal.value = true
+
+  // 获取机器码
+  await getMachineCode()
+}
+
+// 获取机器码
+const getMachineCode = async () => {
+  isLoadingMachineCode.value = true
+  try {
+    const response = await apiGet('/api/machine-code')
+    if (response.success && response.data) {
+      machineCode.value = response.data.machine_code
+    } else {
+      toast.error('获取机器码失败')
+    }
+  } catch (error) {
+    toast.error('获取机器码失败')
+  } finally {
+    isLoadingMachineCode.value = false
+  }
+}
+
+// 复制机器码
+const copyMachineCode = async () => {
+  if (!machineCode.value) return
+
+  try {
+    await window.navigator.clipboard.writeText(machineCode.value)
+    toast.success('机器码已复制到剪贴板')
+  } catch (error) {
+    // 降级方案：使用传统方法复制
+    const textArea = document.createElement('textarea')
+    textArea.value = machineCode.value
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    toast.success('机器码已复制到剪贴板')
+  }
+}
+
+// 激活授权码
+const activateLicense = async () => {
+  if (!licenseCode.value.trim()) {
+    toast.error('请输入授权码')
+    return
+  }
+
+  isActivating.value = true
+  try {
+    const response = await apiPost('/api/license/active', {
+      license_code: licenseCode.value.trim()
+    })
+
+    if (response.success) {
+      toast.success(response.message || '授权码激活成功')
+      showActivationModal.value = false
+      licenseCode.value = ''
+
+      // 重新检查授权状态并更新权限
+      await checkLicenseStatus()
+
+      // 激活成功后刷新页面让权限生效
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    } else {
+      toast.error(response.message || '授权码激活失败')
+    }
+  } catch (error) {
+    toast.error('授权码激活失败')
+  } finally {
+    isActivating.value = false
+  }
+}
+
+// 关闭激活模态框
+const closeActivationModal = () => {
+  showActivationModal.value = false
+  licenseCode.value = ''
+}
+
+// 显示授权信息模态框
+const showLicenseInfo = () => {
+  isDropdownOpen.value = false
+  showLicenseInfoModal.value = true
+}
+
+// 关闭授权信息模态框
+const closeLicenseInfoModal = () => {
+  showLicenseInfoModal.value = false
+}
+
+// 显示反激活确认模态框
+const showDeactivateConfirm = () => {
+  showDeactivateConfirmModal.value = true
+}
+
+// 关闭反激活确认模态框
+const closeDeactivateConfirm = () => {
+  showDeactivateConfirmModal.value = false
+}
+
+// 反激活授权
+const deactivateLicense = async () => {
+  isDeactivating.value = true
+  try {
+    const response = await apiPost('/api/license/deactivate', {})
+
+    if (response.success) {
+      toast.success(response.message || '授权已成功反激活')
+      showLicenseInfoModal.value = false
+      showDeactivateConfirmModal.value = false
+
+      // 重新检查授权状态并更新权限
+      await checkLicenseStatus()
+
+      // 反激活成功后刷新页面让权限生效
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    } else {
+      toast.error(response.message || '反激活失败')
+    }
+  } catch (error) {
+    toast.error('反激活失败')
+  } finally {
+    isDeactivating.value = false
+  }
+}
+
 const handleLogout = async () => {
   // 关闭下拉菜单
   isDropdownOpen.value = false
 
   try {
-    // 调用登出API
-    const response = await fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      }
-    })
-
-    const data = await response.json()
+    const data = await logoutRequest()
 
     if (data.success) {
-      // 清除登录信息
+      // 清除登录信息和权限
       localStorage.removeItem('auth_token')
       localStorage.removeItem('username')
+      PermissionManager.clearPermissions()
 
       toast.success('登出成功')
 
@@ -342,20 +1107,406 @@ const handleLogout = async () => {
       // API返回失败，但仍然清除本地信息
       localStorage.removeItem('auth_token')
       localStorage.removeItem('username')
+      PermissionManager.clearPermissions()
 
       toast.warning('登出请求失败，但已清除本地登录信息')
       router.push('/login')
     }
   } catch (error) {
-    console.error('登出请求失败:', error)
 
     // 网络错误时也清除本地信息
     localStorage.removeItem('auth_token')
     localStorage.removeItem('username')
+    PermissionManager.clearPermissions()
 
     toast.warning('登出请求失败，但已清除本地登录信息')
     router.push('/login')
   }
+}
+
+// 图表数据管理
+const CHART_DATA_KEY = 'atm-chart-data'
+
+// 获取当前小时的时间字符串 (YYYY-MM-DD-HH)
+const getCurrentHourString = (): string => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hour = String(now.getHours()).padStart(2, '0')
+  return `${year}-${month}-${day}-${hour}`
+}
+
+// 获取最近24小时的时间点
+const getLast24Hours = (): string[] => {
+  const hours: string[] = []
+  const now = new Date()
+
+  for (let i = 23; i >= 0; i--) {
+    const time = new Date(now.getTime() - i * 60 * 60 * 1000)
+    const year = time.getFullYear()
+    const month = String(time.getMonth() + 1).padStart(2, '0')
+    const day = String(time.getDate()).padStart(2, '0')
+    const hour = String(time.getHours()).padStart(2, '0')
+    hours.push(`${year}-${month}-${day}-${hour}`)
+  }
+
+  return hours
+}
+
+// 获取最近7天的时间点
+const getLast7Days = (): string[] => {
+  const days: string[] = []
+  const now = new Date()
+
+  for (let i = 6; i >= 0; i--) {
+    const time = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+    const year = time.getFullYear()
+    const month = String(time.getMonth() + 1).padStart(2, '0')
+    const day = String(time.getDate()).padStart(2, '0')
+    days.push(`${year}-${month}-${day}`)
+  }
+
+  return days
+}
+
+// 根据缩放级别获取时间范围
+const getTimeRange = (): string[] => {
+  if (zoomLevel.value === '1day') {
+    return getLast24Hours()
+  } else {
+    return getLast7Days()
+  }
+}
+
+
+
+// 加载Token和激活码数据
+// 从API获取统计数据
+const loadStatsFromAPI = async () => {
+  try {
+    const days = zoomLevel.value === '1day' ? 1 : 7
+    const response = await apiPost('/api/token-stats/range', { days })
+
+    if (response.success && response.data && response.data.stats) {
+      const stats = response.data.stats || []
+
+      if (zoomLevel.value === '1day') {
+        // 1天视图：按小时处理数据
+        processHourlyData(stats)
+      } else {
+        // 7天视图：按天处理数据
+        processDailyData(stats)
+      }
+    } else {
+      // 没有数据时设置默认值
+      currentStats.value = {
+        validTokens: 0,
+        expiringTokens: 0,
+        invalidTokens: 0,
+        totalCredits: 0
+      }
+    }
+  } catch (error) {
+    console.error('加载统计数据失败:', error)
+    // 错误时也设置默认值
+    currentStats.value = {
+      validTokens: 0,
+      expiringTokens: 0,
+      invalidTokens: 0,
+      totalCredits: 0
+    }
+  }
+}
+
+// 处理1天视图的小时数据
+const processHourlyData = (stats: any[]) => {
+  // 生成最近24小时的时间点
+  const hours: string[] = []
+  const hourlyData: { [key: string]: any[] } = {}
+  const now = new Date()
+
+  // 生成24小时的时间点（从24小时前到现在）
+  for (let i = 23; i >= 0; i--) {
+    const time = new Date(now.getTime() - i * 60 * 60 * 1000)
+    const hourKey = `${time.getHours().toString().padStart(2, '0')}:00`
+    hours.push(hourKey)
+    hourlyData[hourKey] = []
+  }
+
+  // 将API数据按小时分组
+  stats.forEach((stat: any) => {
+    const time = new Date(stat.last_refresh_time)
+    const hourKey = `${time.getHours().toString().padStart(2, '0')}:00`
+    if (hourlyData[hourKey]) {
+      hourlyData[hourKey].push(stat)
+    }
+  })
+
+  // 计算每小时的平均值
+  const labels: string[] = []
+  const validData: number[] = []
+  const expiringData: number[] = []
+  const invalidData: number[] = []
+  const creditsData: number[] = []
+
+  hours.forEach(hour => {
+    labels.push(hour)
+    const hourStats = hourlyData[hour]
+
+    if (hourStats.length > 0) {
+      // 计算平均值
+      const avgValid = Math.round(hourStats.reduce((sum, stat) => sum + (stat.valid_count || 0), 0) / hourStats.length)
+      const avgExpiring = Math.round(hourStats.reduce((sum, stat) => sum + (stat.expiring_count || 0), 0) / hourStats.length)
+      const avgInvalid = Math.round(hourStats.reduce((sum, stat) => sum + (stat.invalid_count || 0), 0) / hourStats.length)
+      const avgCredits = Math.round(hourStats.reduce((sum, stat) => sum + (stat.total_credits_balance || 0), 0) / hourStats.length)
+
+      validData.push(avgValid)
+      expiringData.push(avgExpiring)
+      invalidData.push(avgInvalid)
+      creditsData.push(avgCredits)
+    } else {
+      // 没有当前小时数据时，使用最近的有效数据
+      const lastValidIndex = validData.length - 1
+      if (lastValidIndex >= 0) {
+        validData.push(validData[lastValidIndex])
+        expiringData.push(expiringData[lastValidIndex])
+        invalidData.push(invalidData[lastValidIndex])
+        creditsData.push(creditsData[lastValidIndex])
+      } else {
+        // 完全没有数据时才使用0
+        validData.push(0)
+        expiringData.push(0)
+        invalidData.push(0)
+        creditsData.push(0)
+      }
+    }
+  })
+
+  updateChartData(labels, validData, expiringData, invalidData, creditsData)
+}
+
+// 处理7天视图的每日数据（固定最近7天）
+const processDailyData = (stats: any[]) => {
+  // 生成固定的最近7天日期
+  const days: string[] = []
+  const dailyData: { [key: string]: any[] } = {}
+  const now = new Date()
+
+  // 生成固定7天的日期（从7天前到今天）
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+    const dayKey = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
+    days.push(dayKey)
+    dailyData[dayKey] = []
+  }
+
+  // 将API数据按天分组
+  stats.forEach((stat: any) => {
+    const date = new Date(stat.last_refresh_time)
+    const dayKey = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
+    if (dailyData[dayKey]) {
+      dailyData[dayKey].push(stat)
+    }
+  })
+
+  // 计算每天的平均值
+  const labels: string[] = []
+  const validData: number[] = []
+  const expiringData: number[] = []
+  const invalidData: number[] = []
+  const creditsData: number[] = []
+
+  days.forEach(day => {
+    labels.push(day)
+    const dayStats = dailyData[day]
+
+    if (dayStats.length > 0) {
+      // 有数据：计算当天平均数
+      const avgValid = Math.round(dayStats.reduce((sum, stat) => sum + (stat.valid_count || 0), 0) / dayStats.length)
+      const avgExpiring = Math.round(dayStats.reduce((sum, stat) => sum + (stat.expiring_count || 0), 0) / dayStats.length)
+      const avgInvalid = Math.round(dayStats.reduce((sum, stat) => sum + (stat.invalid_count || 0), 0) / dayStats.length)
+      const avgCredits = Math.round(dayStats.reduce((sum, stat) => sum + (stat.total_credits_balance || 0), 0) / dayStats.length)
+
+      validData.push(avgValid)
+      expiringData.push(avgExpiring)
+      invalidData.push(avgInvalid)
+      creditsData.push(avgCredits)
+    } else {
+      // 没有数据：显示0
+      validData.push(0)
+      expiringData.push(0)
+      invalidData.push(0)
+      creditsData.push(0)
+    }
+  })
+
+  updateChartData(labels, validData, expiringData, invalidData, creditsData)
+}
+
+// 更新图表数据的统一方法
+const updateChartData = (labels: string[], validData: number[], expiringData: number[], invalidData: number[], creditsData: number[]) => {
+  // 强制创建新的数据对象来触发响应式更新
+  tokenCountChartData.value = {
+    labels: [...labels],
+    datasets: [
+      {
+        ...tokenCountChartData.value.datasets[0],
+        data: [...validData]
+      },
+      {
+        ...tokenCountChartData.value.datasets[1],
+        data: [...expiringData]
+      },
+      {
+        ...tokenCountChartData.value.datasets[2],
+        data: [...invalidData]
+      }
+    ]
+  }
+
+  creditsChartData.value = {
+    labels: [...labels],
+    datasets: [
+      {
+        ...creditsChartData.value.datasets[0],
+        data: [...creditsData]
+      }
+    ]
+  }
+
+  // 更新当前统计数据（使用最新的数据点）
+  updateCurrentStats(validData, expiringData, invalidData, creditsData)
+}
+
+// 更新当前统计数据
+const updateCurrentStats = (validData: number[], expiringData: number[], invalidData: number[], creditsData: number[]) => {
+  // 查找最近的有效数据点（从最新往前找）
+  let validIndex = -1
+  for (let i = validData.length - 1; i >= 0; i--) {
+    if (validData[i] !== undefined && validData[i] !== null &&
+        expiringData[i] !== undefined && expiringData[i] !== null &&
+        invalidData[i] !== undefined && invalidData[i] !== null &&
+        creditsData[i] !== undefined && creditsData[i] !== null) {
+      validIndex = i
+      break
+    }
+  }
+
+  if (validIndex >= 0) {
+    currentStats.value = {
+      validTokens: validData[validIndex],
+      expiringTokens: expiringData[validIndex],
+      invalidTokens: invalidData[validIndex],
+      totalCredits: creditsData[validIndex]
+    }
+
+    // 更新历史数据用于绘制曲线（保留最近6个数据点）
+    const maxPoints = 6
+
+    // 取最近的数据点
+    const recentValid = validData.slice(-maxPoints)
+    const recentExpiring = expiringData.slice(-maxPoints)
+    const recentInvalid = invalidData.slice(-maxPoints)
+
+    miniChartHistory.value = {
+      valid: recentValid,
+      expiring: recentExpiring,
+      invalid: recentInvalid
+    }
+
+    // 更新曲线路径
+    updateMiniChartPaths()
+  }
+}
+
+// 更新mini图表的曲线路径
+const updateMiniChartPaths = () => {
+  validTokensPath.value = generateCurvePath(miniChartHistory.value.valid)
+  expiringTokensPath.value = generateCurvePath(miniChartHistory.value.expiring)
+  invalidTokensPath.value = generateCurvePath(miniChartHistory.value.invalid)
+}
+
+// 生成曲线路径
+const generateCurvePath = (data: number[]): string => {
+  if (data.length === 0) return ''
+
+  const maxValue = Math.max(...Object.values(miniChartHistory.value).flat(), 1)
+  const width = 36 // 可用宽度
+  const height = 16 // 可用高度
+  const startX = 2
+  const startY = 18
+
+  let path = ''
+
+  data.forEach((value, index) => {
+    const x = startX + (index / Math.max(data.length - 1, 1)) * width
+    const y = startY - (value / maxValue) * height
+
+    if (index === 0) {
+      path = `M ${x} ${y}`
+    } else {
+      path += ` L ${x} ${y}`
+    }
+  })
+
+  return path
+}
+
+// 计算当前数值点的Y坐标
+const getPointY = (value: number): number => {
+  const allValues = [
+    ...miniChartHistory.value.valid,
+    ...miniChartHistory.value.expiring,
+    ...miniChartHistory.value.invalid
+  ]
+  const maxValue = Math.max(...allValues, 1)
+  const height = 16
+  const startY = 18
+
+  return startY - (value / maxValue) * height
+}
+
+// 格式化总次数显示（缩短大数字）
+const formatCredits = (credits: number): string => {
+  if (credits >= 1000000) {
+    return Math.floor(credits / 100000) / 10 + 'M'
+  } else if (credits >= 1000) {
+    return Math.floor(credits / 100) / 10 + 'K'
+  } else {
+    return credits.toString()
+  }
+}
+
+
+
+
+
+
+
+// 更新图表显示（现在数据直接从API获取，此方法主要用于触发图表重绘）
+const updateChartDisplay = () => {
+  // 图表数据已在loadStatsFromAPI中更新，这里只需要触发响应式更新
+  // Vue的响应式系统会自动处理图表的重新渲染
+}
+
+
+
+
+
+// 设置特定的缩放级别
+const setZoomLevel = async (level: '7days' | '1day') => {
+  zoomLevel.value = level
+  // 保存用户偏好到localStorage
+  localStorage.setItem('chart-zoom-level', level)
+  // 重新加载对应时间范围的数据（key属性变化会自动触发图表重新渲染）
+  await loadStatsFromAPI()
+}
+
+// 加载图表数据
+const loadChartData = async () => {
+  await loadStatsFromAPI()
+  updateChartDisplay()
 }
 </script>
 
@@ -475,11 +1626,36 @@ const handleLogout = async () => {
   align-items: center;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
+  color: var(--tblr-dark);
+  text-decoration: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.dropdown-item:hover {
+  background-color: var(--tblr-primary-lt);
+  color: var(--tblr-primary);
 }
 
 .dropdown-item-icon {
   margin-right: 0.5rem;
   font-size: 1rem;
+}
+
+.dropdown-header {
+  padding: 0.5rem 1rem 0.25rem;
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  color: var(--tblr-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.dropdown-divider {
+  height: 0;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  border-top: 1px solid var(--tblr-border-color);
 }
 
 .dropdown-arrow {
@@ -722,6 +1898,236 @@ const handleLogout = async () => {
   font-size: 0.75rem;
   width: 1rem;
   height: 1rem;
+}
+
+/* 图表图标样式 */
+.chart-icon-btn {
+  transition: all 0.2s ease;
+  border-radius: 0.375rem;
+}
+
+.chart-icon-btn:hover {
+  background-color: var(--tblr-bg-surface-secondary) !important;
+  transform: translateY(-1px);
+}
+
+.mini-chart-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-chart-frame {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 3px;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.chart-icon-btn:hover .mini-chart-frame {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.mini-chart {
+  width: 40px;
+  height: 20px;
+  display: block;
+}
+
+.chart-line {
+  transition: stroke 0.2s ease;
+}
+
+.chart-point {
+  transition: fill 0.2s ease;
+}
+
+.chart-icon-btn:hover .chart-line {
+  stroke: #20c997;
+}
+
+.chart-icon-btn:hover .chart-point {
+  fill: #20c997;
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .mini-chart-frame {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .chart-icon-btn:hover .mini-chart-frame {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .chart-line {
+    stroke: #20c997;
+  }
+
+  .chart-point {
+    fill: #20c997;
+  }
+
+  .chart-icon-btn:hover .chart-line {
+    stroke: #6fd8a8;
+  }
+
+  .chart-icon-btn:hover .chart-point {
+    fill: #6fd8a8;
+  }
+}
+
+/* 图表下拉菜单样式 */
+.chart-dropdown {
+  width: 600px;
+  max-width: 95vw;
+  padding: 0;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.chart-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--tblr-bg-surface-secondary);
+  border-bottom: 1px solid var(--tblr-border-color);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.chart-dropdown-header .dropdown-header {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--tblr-dark);
+}
+
+.chart-dropdown-body {
+  padding: 1.25rem;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.chart-controls {
+  margin-bottom: 1rem;
+}
+
+.chart-section {
+  margin-bottom: 1.5rem;
+}
+
+.chart-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--tblr-dark);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.chart-container-mini {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: var(--tblr-bg-surface);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+}
+
+.chart-container-mini canvas {
+  max-height: 180px !important;
+}
+
+
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .chart-dropdown {
+    width: 500px;
+  }
+
+  .chart-container-mini {
+    height: 160px;
+  }
+
+  .chart-container-mini canvas {
+    max-height: 140px !important;
+  }
+}
+
+/* iPhone和小屏设备优化 */
+@media (max-width: 576px) {
+  .chart-dropdown {
+    position: fixed !important;
+    top: 60px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    z-index: 1060 !important;
+    transform: none !important;
+    background: var(--tblr-bg-surface) !important;
+    border: 1px solid var(--tblr-border-color) !important;
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .chart-dropdown-body {
+    padding: 1rem;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    background: var(--tblr-bg-surface) !important;
+  }
+
+  .chart-container-mini {
+    height: 180px;
+    background: var(--tblr-bg-surface) !important;
+  }
+
+  .chart-container-mini canvas {
+    max-height: 160px !important;
+  }
+
+  /* 添加遮罩层 */
+  .chart-dropdown.show::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: -1;
+  }
+}
+
+/* 超小屏设备（iPhone SE等） */
+@media (max-width: 375px) {
+  .chart-dropdown {
+    left: 5px !important;
+    right: 5px !important;
+  }
+
+  .chart-dropdown-body {
+    padding: 0.75rem;
+  }
+
+  .chart-container-mini {
+    height: 160px;
+  }
+
+  .chart-container-mini canvas {
+    max-height: 140px !important;
+  }
 }
 
 /* 额外的小屏修复，确保单行显示并避免换行 */

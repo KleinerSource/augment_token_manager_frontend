@@ -3,12 +3,11 @@ import { RouterView, useRoute } from 'vue-router'
 import { computed, defineAsyncComponent } from 'vue'
 import NavigationBar from './components/NavigationBar.vue'
 import ToastNotification from './components/ToastNotification.vue'
-import { isEmailSubscriptionEnabled } from './types/feature-flags'
+import StackedFloatingButtons from './components/StackedFloatingButtons.vue'
 
-// 条件导入EmailSubscription组件
-const EmailSubscription = isEmailSubscriptionEnabled()
-  ? defineAsyncComponent(() => import('./components/EmailSubscription.vue'))
-  : null
+// 导入所有组件（权限控制在组件内部处理）
+const EmailSubscription = defineAsyncComponent(() => import('./components/EmailSubscription.vue'))
+const TempMailService = defineAsyncComponent(() => import('./components/TempMailService.vue'))
 
 const route = useRoute()
 
@@ -51,10 +50,22 @@ const isLoginPage = computed(() => route.path === '/login')
   <!-- 全局提示组件 -->
   <ToastNotification />
 
-  <!-- 邮件订阅悬浮窗 -->
+  <!-- 堆叠式悬浮按钮组（在非综合管理页面显示，不包含批量刷新功能） -->
+  <StackedFloatingButtons
+    v-if="!isLoginPage && route.name !== 'comprehensive-manager'"
+    :show-batch-refresh="false"
+  />
+
+  <!-- 邮件订阅悬浮窗（仅窗口部分，按钮已整合到堆叠按钮中） -->
   <component
-    v-if="!isLoginPage && isEmailSubscriptionEnabled() && EmailSubscription"
+    v-if="!isLoginPage && EmailSubscription"
     :is="EmailSubscription"
+  />
+
+  <!-- 临时邮箱悬浮窗（仅窗口部分，按钮已整合到堆叠按钮中） -->
+  <component
+    v-if="!isLoginPage && TempMailService"
+    :is="TempMailService"
   />
 </template>
 

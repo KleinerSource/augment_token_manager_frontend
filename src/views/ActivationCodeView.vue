@@ -1,5 +1,24 @@
 <template>
-  <div class="activation-code-manager">
+  <div v-if="hasPermission" class="activation-code-manager">
+    <!-- 权限检查通过，显示内容 -->
+  </div>
+  <div v-else class="no-permission">
+    <!-- 无权限提示 -->
+    <div class="page-body">
+      <div class="container-xl">
+        <div class="empty">
+          <div class="empty-icon">
+            <i class="bi bi-shield-exclamation" style="font-size: 3rem; color: var(--tblr-warning);"></i>
+          </div>
+          <p class="empty-title">无访问权限</p>
+          <p class="empty-subtitle text-muted">
+            您没有访问激活码管理功能的权限，请联系管理员获取相应权限。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div v-if="hasPermission" class="activation-code-manager-content">
     <!-- 页面标题 -->
     <div class="page-header d-print-none">
       <div class="container-xl">
@@ -9,6 +28,7 @@
           </div>
           <div class="col-auto ms-auto d-print-none">
             <div class="btn-list">
+
               <button @click="showCreateCardModal" class="btn btn-primary" title="创建激活码">
                 <i class="bi bi-plus-circle me-sm-2"></i>
                 <span class="d-none d-sm-inline">创建激活码</span>
@@ -22,113 +42,8 @@
     <!-- 内容区域 -->
     <div class="page-body">
       <div class="container-xl">
-        <!-- 状态统计窗口 -->
-        <div class="row mb-4">
-          <div class="col-6 col-lg-3">
-            <div
-              class="card card-sm cursor-pointer"
-              :class="{ 'border-success': activeFilter === '已使用' }"
-              @click="toggleFilter('已使用')"
-              style="text-decoration: none;"
-            >
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col-auto">
-                    <span class="bg-success text-white avatar">
-                      <i class="bi bi-check-circle"></i>
-                    </span>
-                  </div>
-                  <div class="col">
-                    <div class="font-weight-medium">
-                      已使用
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <div class="h1 mb-0 text-success">{{ statusStats.used }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-6 col-lg-3">
-            <div
-              class="card card-sm cursor-pointer"
-              :class="{ 'border-secondary': activeFilter === '未使用' }"
-              @click="toggleFilter('未使用')"
-              style="text-decoration: none;"
-            >
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col-auto">
-                    <span class="bg-secondary text-white avatar">
-                      <i class="bi bi-circle"></i>
-                    </span>
-                  </div>
-                  <div class="col">
-                    <div class="font-weight-medium">
-                      未使用
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <div class="h1 mb-0 text-secondary">{{ statusStats.unused }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-6 col-lg-3">
-            <div
-              class="card card-sm cursor-pointer"
-              :class="{ 'border-danger': activeFilter === '即将过期' }"
-              @click="toggleFilter('即将过期')"
-              style="text-decoration: none;"
-            >
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col-auto">
-                    <span class="bg-danger text-white avatar">
-                      <i class="bi bi-exclamation-triangle"></i>
-                    </span>
-                  </div>
-                  <div class="col">
-                    <div class="font-weight-medium">
-                      即将过期
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <div class="h1 mb-0 text-danger">{{ statusStats.expiringSoon }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-6 col-lg-3">
-            <div
-              class="card card-sm cursor-pointer"
-              :class="{ 'border-danger': activeFilter === '失效' }"
-              @click="toggleFilter('失效')"
-              style="text-decoration: none;"
-            >
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col-auto">
-                    <span class="bg-danger text-white avatar">
-                      <i class="bi bi-x-circle"></i>
-                    </span>
-                  </div>
-                  <div class="col">
-                    <div class="font-weight-medium">
-                      失效
-                    </div>
-                  </div>
-                  <div class="col-auto">
-                    <div class="h1 mb-0 text-danger">{{ statusStats.unavailable }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+
+
 
 
         <div class="card">
@@ -156,7 +71,7 @@
                 </tr>
                 <tr v-else-if="activationCards.length === 0">
                   <td colspan="8" class="text-center py-4 text-muted">
-                    {{ activeFilter ? `没有符合"${activeFilter}"条件的激活码` : '暂无激活码数据' }}
+                    暂无激活码数据
                   </td>
                 </tr>
                 <tr v-else v-for="card in activationCards" :key="card.id">
@@ -181,9 +96,10 @@
                             refreshingTokenId === card.bound_token_id ? 'bg-warning text-dark' :
                             getTokenStatus(getTokenInfo(card.bound_token_id)!) === '正常' ? 'bg-success text-white' :
                             getTokenStatus(getTokenInfo(card.bound_token_id)!) === '失效' ? 'bg-danger text-white' :
-                            getTokenStatus(getTokenInfo(card.bound_token_id)!) === '耗尽' ? 'bg-warning text-dark' : 'bg-secondary text-white']"
+                            getTokenStatus(getTokenInfo(card.bound_token_id)!) === '暂停' ? 'bg-danger text-white' :
+                            getTokenStatus(getTokenInfo(card.bound_token_id)!) === '耗尽' ? 'bg-warning text-white' : 'bg-secondary text-white']"
                           @click="showRefreshTokenModal(card.bound_token_id!)"
-                          :title="refreshingTokenId === card.bound_token_id ? '刷新中...' : '点击刷新Token状态'"
+                          :title="refreshingTokenId === card.bound_token_id ? '刷新' : '点击刷新Token状态'"
                         >
                           <i
                             v-if="refreshingTokenId === card.bound_token_id"
@@ -207,7 +123,7 @@
                     </div>
                   </td>
                   <td>
-                    <span :class="['badge', card.is_used ? 'bg-success text-white' : 'bg-warning text-dark']">
+                    <span :class="['badge', card.is_used ? 'bg-success text-white' : 'bg-warning text-white']">
                       {{ card.is_used ? '已使用' : '未使用' }}
                     </span>
                   </td>
@@ -253,7 +169,7 @@
                           :class="['bi', 'me-1',
                             refreshingCardId === card.id ? 'bi-arrow-clockwise refresh-spin' : 'bi-arrow-clockwise']"
                         ></i>
-                        {{ refreshingCardId === card.id ? '刷新中' : '刷新' }}
+                        {{ refreshingCardId === card.id ? '刷新' : '刷新' }}
                       </button>
                       <button @click="showDeleteCardModal(card)" class="btn btn-sm btn-danger">
                         <i class="bi bi-trash me-1"></i>
@@ -309,6 +225,7 @@
     </div>
 
     <!-- 确认刷新Token模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showRefreshModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-sm modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -358,8 +275,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 创建激活码模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showCreateModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -425,7 +344,7 @@
                         class="token-card"
                         :class="{
                           'token-card-selected': newCard.selectedToken === token.id,
-                          'token-card-disabled': isTokenBound(token.id) || getTokenStatus(token) === '耗尽'
+                          'token-card-disabled': isTokenDisabled(token)
                         }"
                         @click="selectToken(token.id)"
                       >
@@ -482,8 +401,10 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 删除确认模态框 -->
+    <Transition name="modal-animate" appear>
     <div v-if="showDeleteModal" class="modal modal-blur fade show" style="display: block;">
       <div class="modal-dialog modal-sm modal-dialog-centered" role="document" @click.stop>
         <div class="modal-content">
@@ -518,12 +439,18 @@
         </div>
       </div>
     </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { toast } from '../utils/toast'
+import { apiGet, apiPost, apiDelete } from '../utils/api'
+import { PermissionManager } from '../types/permissions'
+
+// 权限检查
+const hasPermission = computed(() => PermissionManager.hasActivationCodeManagement())
 
 interface ActivationCard {
   id: string
@@ -569,10 +496,26 @@ const pagination = ref({
 })
 const showCreateModal = ref(false)
 const showDeleteModal = ref(false)
+// 从本地存储获取用户偏好的激活码类型
+const getPreferredCardType = (): '普通' | '绑定' => {
+  const saved = localStorage.getItem('activation_card_type_preference')
+  return (saved === '绑定' || saved === '普通') ? saved : '普通'
+}
+
+// 保存用户偏好的激活码类型
+const saveCardTypePreference = (cardType: '普通' | '绑定') => {
+  localStorage.setItem('activation_card_type_preference', cardType)
+}
+
 const newCard = ref<NewCard>({
-  cardType: '普通',
+  cardType: getPreferredCardType(),
   rechargeDays: 30
 })
+
+// 监听激活码类型变化，自动保存用户偏好
+watch(() => newCard.value.cardType, (newType) => {
+  saveCardTypePreference(newType)
+}, { immediate: false })
 const deletingCard = ref<ActivationCard | null>(null)
 const availableTokens = ref<string[]>([])
 const isLoading = ref(false)
@@ -585,26 +528,34 @@ const isDeleting = ref(false)
 const boundTokenIds = ref<string[]>([])
 const refreshingCardId = ref<string | null>(null)
 
+// 防抖刷新函数
+let refreshDebounceTimer: number | null = null
+const debouncedRefresh = () => {
+  if (refreshDebounceTimer) {
+    clearTimeout(refreshDebounceTimer)
+  }
+  refreshDebounceTimer = setTimeout(() => {
+    refreshActivationCards()
+  }, 1000) // 1秒防抖
+}
+
 // 加载激活码列表
 const loadActivationCards = async () => {
   isLoading.value = true
 
   try {
     // 不限制limit，获取所有数据
-    const response = await fetch('/api/recharge-cards?limit=1000')
-    const data = await response.json()
+    const data = await apiGet<ActivationCard[]>('/api/recharge-cards?limit=1000')
 
-    if (data.success) {
-      allActivationCards.value = data.data || []
+    if (data.success && data.data) {
+      allActivationCards.value = data.data
       // 使用 nextTick 确保响应式数据更新后再初始化分页
       await nextTick()
       updatePagination(1)
     } else {
-      console.error('激活码列表加载失败:', data)
       allActivationCards.value = []
     }
   } catch (error) {
-    console.error('激活码列表加载错误:', error)
     allActivationCards.value = []
   } finally {
     isLoading.value = false
@@ -614,17 +565,14 @@ const loadActivationCards = async () => {
 // 加载Token列表
 const loadTokens = async () => {
   try {
-    const response = await fetch('/api/tokens?limit=1000')
-    const data = await response.json()
+    const data = await apiGet<Token[]>('/api/tokens?limit=1000')
 
     if (data.success) {
-      tokens.value = data.data || []
+      tokens.value = data.data || [] // 当data为null时使用空数组
     } else {
-      console.error('Token列表加载失败:', data)
       tokens.value = []
     }
   } catch (error) {
-    console.error('Token列表加载错误:', error)
     tokens.value = []
   }
 }
@@ -632,16 +580,13 @@ const loadTokens = async () => {
 // 加载已绑定的Token ID列表
 const loadBoundTokens = async () => {
   try {
-    const response = await fetch('/api/recharge-cards/bound-tokens')
-    const data = await response.json()
+    const data = await apiGet<string[]>('/api/recharge-cards/bound-tokens')
 
     if (data.success && Array.isArray(data.data)) {
       boundTokenIds.value = data.data
     } else {
-      console.error('获取已绑定Token失败:', data)
     }
   } catch (error) {
-    console.error('加载已绑定Token失败:', error)
   }
 }
 
@@ -650,20 +595,28 @@ const isTokenBound = (tokenId: string): boolean => {
   return boundTokenIds.value.includes(tokenId)
 }
 
+// 判断Token是否被禁用（不可选择）
+const isTokenDisabled = (token: Token): boolean => {
+  const status = getTokenStatus(token)
+  return isTokenBound(token.id) || status === '失效' || status === '耗尽' || status === '暂停'
+}
+
 // 获取Token状态样式类
 const getTokenStatusClass = (token: Token): string => {
   const status = getTokenStatus(token)
   switch (status) {
     case '正常':
-      return 'text-success'
+      return 'bg-success text-white'
     case '失效':
-      return 'text-danger'
+      return 'bg-danger text-white'
     case '未验证':
-      return 'text-secondary'
+      return 'bg-secondary text-white'
     case '耗尽':
-      return 'text-warning'
+      return 'bg-warning text-dark'
+    case '暂停':
+      return 'bg-danger text-white'
     default:
-      return 'text-secondary'
+      return 'bg-secondary text-white'
   }
 }
 
@@ -687,128 +640,17 @@ const getCreditsColorClass = (credits: string): string => {
   return 'text-danger'  // 红色
 }
 
-// 状态过滤
-const activeFilter = ref<string | null>(null)
 
-// 状态统计
-const statusStats = computed(() => {
-  const stats = {
-    used: 0,
-    unused: 0,
-    expiringSoon: 0,
-    unavailable: 0
-  }
 
-  allActivationCards.value.forEach(card => {
-    // 检查是否失效（检查所有绑定Token类型的激活码）
-    let isUnavailable = false
-    if (card.card_type === 'token_binding' && card.bound_token_id) {
-      const tokenInfo = getTokenInfo(card.bound_token_id)
-      if (tokenInfo) {
-        // 只检查 ban_status 失效状态
-        if (tokenInfo.ban_status === '"ACTIVE"') {
-          isUnavailable = true
-          stats.unavailable++
-        }
-      } else {
-      }
-    } else {
-    }
 
-    if (!isUnavailable) {
-      if (card.used_at) {
-        stats.used++
 
-        // 检查是否即将过期（天数小于2）
-        if (card.card_type === 'token_binding' && card.bound_token_id) {
-          const tokenInfo = getTokenInfo(card.bound_token_id)
-          if (tokenInfo) {
-            const timeInfo = calculateRemainingTime(tokenInfo)
-            if (timeInfo.totalDays > 0 && timeInfo.totalDays < 2) {
-              stats.expiringSoon++
-            }
-          }
-        }
-      } else {
-        stats.unused++
-      }
-    }
-  })
 
-  return stats
-})
 
-// 过滤后的激活码列表
-const filteredActivationCards = computed(() => {
-  if (!activeFilter.value) {
-    return allActivationCards.value
-  }
 
-  return allActivationCards.value.filter(card => {
-    switch (activeFilter.value) {
-      case '已使用':
-        // 已使用且非失效的
-        if (card.used_at) {
-          if (card.card_type === 'token_binding' && card.bound_token_id) {
-            const tokenInfo = getTokenInfo(card.bound_token_id)
-            if (tokenInfo) {
-              return tokenInfo.ban_status !== '"ACTIVE"'
-            }
-          }
-          return true // 非绑定类型的已使用激活码
-        }
-        return false
-      case '未使用':
-        // 未使用且非失效的
-        if (!card.used_at) {
-          if (card.card_type === 'token_binding' && card.bound_token_id) {
-            const tokenInfo = getTokenInfo(card.bound_token_id)
-            if (tokenInfo) {
-              return tokenInfo.ban_status !== '"ACTIVE"'
-            }
-          }
-          return true // 非绑定类型的未使用激活码
-        }
-        return false
-      case '即将过期':
-        // 已使用且即将过期的（排除失效的）
-        if (card.used_at && card.card_type === 'token_binding' && card.bound_token_id) {
-          const tokenInfo = getTokenInfo(card.bound_token_id)
-          if (tokenInfo) {
-            // 排除失效的
-            if (tokenInfo.ban_status === '"ACTIVE"') return false
-            const timeInfo = calculateRemainingTime(tokenInfo)
-            return timeInfo.totalDays > 0 && timeInfo.totalDays < 2
-          }
-        }
-        return false
-      case '失效':
-        // 绑定失效Token的激活码（无论是否使用）
-        if (card.card_type === 'token_binding' && card.bound_token_id) {
-          const tokenInfo = getTokenInfo(card.bound_token_id)
-          if (tokenInfo) {
-            // 只检查 ban_status 失效状态
-            return tokenInfo.ban_status === '"ACTIVE"'
-          }
-        }
-        return false
-      default:
-        return true
-    }
-  })
-})
-
-// 切换过滤器
-const toggleFilter = (filter: string | null) => {
-  activeFilter.value = activeFilter.value === filter ? null : filter
-  // 切换过滤器时重置到第一页
-  updatePagination(1)
-}
 
 // 更新分页数据
 const updatePagination = (page: number = 1) => {
-  const filteredData = filteredActivationCards.value
-  const total = filteredData.length
+  const total = allActivationCards.value.length
   const limit = pagination.value.limit
   const totalPages = Math.ceil(total / limit) || 1
 
@@ -819,10 +661,8 @@ const updatePagination = (page: number = 1) => {
   const startIndex = (currentPage - 1) * limit
   const endIndex = Math.min(startIndex + limit, total)
 
-
-
   // 更新显示的激活码数据
-  activationCards.value = filteredData.slice(startIndex, endIndex)
+  activationCards.value = allActivationCards.value.slice(startIndex, endIndex)
 
   // 更新分页信息
   pagination.value = {
@@ -899,7 +739,7 @@ const getTokenInfo = (tokenId: string) => {
 }
 
 // 获取Token状态
-const getTokenStatus = (token: Token): '正常' | '失效' | '未验证' | '耗尽' => {
+const getTokenStatus = (token: Token): '正常' | '失效' | '未验证' | '耗尽' | '暂停' => {
   if ((!token.portal_info || token.portal_info === '{}') &&
       (!token.ban_status || token.ban_status === '{}')) {
     return '未验证'
@@ -921,6 +761,9 @@ const getTokenStatus = (token: Token): '正常' | '失效' | '未验证' | '耗�
     }
     if (token.ban_status === '"ACTIVE"') {
       return '失效'
+    }
+    if (token.ban_status === '"SUSPENDED"') {
+      return '暂停'
     }
   }
 
@@ -1009,11 +852,40 @@ const formatDateTime = (dateString: string): string => {
 
 
 
+// 监听Token数据更新事件
+const handleTokensDataUpdated = (event: Event) => {
+  // 当Token数据更新时，刷新激活码数据（因为激活码状态依赖Token状态）
+  if (!isLoading.value) {
+    debouncedRefresh()
+  }
+}
+
+
+
+// 刷新激活码数据
+const refreshActivationCards = async () => {
+  await loadActivationCards()
+  await loadTokens() // 同时刷新Token数据以确保状态计算准确
+}
+
 // 生命周期
 onMounted(() => {
   loadActivationCards()
   loadTokens() // 加载Token列表用于显示绑定Token详情
   loadBoundTokens() // 加载已绑定Token列表
+
+  // 监听Token数据更新事件
+  window.addEventListener('tokens-data-updated', handleTokensDataUpdated as EventListener)
+})
+
+onUnmounted(() => {
+  // 清理防抖定时器
+  if (refreshDebounceTimer) {
+    clearTimeout(refreshDebounceTimer)
+  }
+
+  // 移除事件监听器
+  window.removeEventListener('tokens-data-updated', handleTokensDataUpdated as EventListener)
 })
 
 // 方法
@@ -1054,16 +926,12 @@ const confirmRefreshToken = async () => {
   refreshingTokenId.value = tokenId
 
   try {
-    const response = await fetch(`/api/tokens/${tokenId}/refresh`, {
-      method: 'POST'
-    })
+    const data = await apiPost(`/api/tokens/${tokenId}/validate`)
 
-    const data = await response.json()
-
-    if (data.success) {
+    if (data.success && data.data) {
       // 更新本地Token数据
       const tokenIndex = tokens.value.findIndex(t => t.id === tokenId)
-      if (tokenIndex > -1 && data.data) {
+      if (tokenIndex > -1) {
         tokens.value[tokenIndex] = { ...tokens.value[tokenIndex], ...data.data }
       }
 
@@ -1072,10 +940,9 @@ const confirmRefreshToken = async () => {
       // 关闭模态框
       closeRefreshModal()
     } else {
-      toast.error(data.error || data.message || 'Token状态刷新失败')
+      toast.error(data.error || 'Token状态刷新失败')
     }
   } catch (error) {
-    console.error('Token状态刷新失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     refreshingTokenId.value = null
@@ -1121,7 +988,6 @@ const copyActivationCode = async (card: ActivationCard) => {
     await navigator.clipboard.writeText(copyText)
     toast.success('激活码已复制到剪贴板')
   } catch (error) {
-    console.error('复制失败:', error)
 
     // 降级方案：使用传统的复制方法
     try {
@@ -1137,47 +1003,84 @@ const copyActivationCode = async (card: ActivationCard) => {
 
       toast.success('激活码已复制到剪贴板')
     } catch (fallbackError) {
-      console.error('降级复制也失败:', fallbackError)
       toast.error('复制失败，请手动复制')
     }
+  }
+}
+
+// 计算Token的总小时数（用于精确排序）
+const calculateTotalHours = (token: Token): number => {
+  try {
+    const portalInfo = JSON.parse(token.portal_info)
+    if (!portalInfo || !portalInfo.expiry_date) return 0
+
+    const expiryDate = new Date(portalInfo.expiry_date)
+    if (isNaN(expiryDate.getTime())) return 0
+
+    const now = new Date()
+    const diffTime = expiryDate.getTime() - now.getTime()
+
+    if (diffTime <= 0) return 0
+
+    return Math.floor(diffTime / (1000 * 60 * 60)) // 返回总小时数
+  } catch {
+    return 0
   }
 }
 
 // 排序后的Token列表
 const sortedTokens = computed(() => {
   return [...tokens.value].sort((a, b) => {
-    // 获取Token状态
+    // 获取Token状态和绑定状态
     const aStatus = getTokenStatus(a)
     const bStatus = getTokenStatus(b)
     const aBound = isTokenBound(a.id)
     const bBound = isTokenBound(b.id)
 
-    // 不可选择的Token（已绑定或耗尽）排到最后
-    const aDisabled = aBound || aStatus === '耗尽'
-    const bDisabled = bBound || bStatus === '耗尽'
-
-    if (aDisabled && !bDisabled) return 1
-    if (!aDisabled && bDisabled) return -1
-
-    // 如果都是可选择或都是不可选择，按天数和次数排序
-    const aTimeInfo = calculateRemainingTime(a)
-    const bTimeInfo = calculateRemainingTime(b)
-    const aCredits = getRemainingCredits(a)
-    const bCredits = getRemainingCredits(b)
-
-    // 处理无效值
-    const aDaysNum = aTimeInfo.totalDays === 0 ? Infinity : aTimeInfo.totalDays
-    const bDaysNum = bTimeInfo.totalDays === 0 ? Infinity : bTimeInfo.totalDays
-    const aCreditsNum = aCredits === '-' ? Infinity : parseInt(aCredits)
-    const bCreditsNum = bCredits === '-' ? Infinity : parseInt(bCredits)
-
-    // 天数少的优先
-    if (aDaysNum !== bDaysNum) {
-      return aDaysNum - bDaysNum
+    // 定义优先级权重（数字越小优先级越高）
+    const getPriority = (token: any, status: string, bound: boolean) => {
+      if (bound) return 5 // 已绑定 - 最低优先级（禁用）
+      if (status === '失效') return 4 // 失效（禁用）
+      if (status === '耗尽') return 3 // 耗尽（禁用）
+      if (status === '未验证') return 2 // 未验证
+      return 1 // 正常账号 - 最高优先级
     }
 
-    // 天数相同时，次数少的优先
-    return aCreditsNum - bCreditsNum
+    const aPriority = getPriority(a, aStatus, aBound)
+    const bPriority = getPriority(b, bStatus, bBound)
+
+    // 按优先级排序
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority
+    }
+
+    // 同优先级内部排序
+    if (aPriority === 1) {
+      // 正常账号：天数优先 -> 次数优先
+      const aTimeInfo = calculateRemainingTime(a)
+      const bTimeInfo = calculateRemainingTime(b)
+      const aTotalHours = calculateTotalHours(a)
+      const bTotalHours = calculateTotalHours(b)
+      const aCredits = getRemainingCredits(a)
+      const bCredits = getRemainingCredits(b)
+
+      // 处理时间值（使用总小时数进行精确比较）
+      const aHoursNum = aTotalHours <= 0 ? Infinity : aTotalHours
+      const bHoursNum = bTotalHours <= 0 ? Infinity : bTotalHours
+
+      // 天数优先：按总小时数排序（时间最短优先）
+      if (aHoursNum !== bHoursNum) {
+        return aHoursNum - bHoursNum
+      }
+
+      // 时间相同时，次数优先（次数最少优先）
+      const aCreditsNum = aCredits === '-' ? Infinity : parseInt(aCredits)
+      const bCreditsNum = bCredits === '-' ? Infinity : parseInt(bCredits)
+      return aCreditsNum - bCreditsNum
+    }
+
+    // 其他状态按默认顺序
+    return 0
   })
 })
 
@@ -1186,8 +1089,8 @@ const selectToken = (tokenId: string) => {
   const token = tokens.value.find(t => t.id === tokenId)
   if (!token) return
 
-  // 已绑定或耗尽的Token不能选择
-  if (isTokenBound(tokenId) || getTokenStatus(token) === '耗尽') {
+  // 禁用的Token不能选择（失效、耗尽、已绑定）
+  if (isTokenDisabled(token)) {
     return
   }
 
@@ -1202,7 +1105,7 @@ const selectToken = (tokenId: string) => {
 
 const showCreateCardModal = () => {
   newCard.value = {
-    cardType: '普通',
+    cardType: getPreferredCardType(),
     rechargeDays: 30
   }
   showCreateModal.value = true
@@ -1211,7 +1114,7 @@ const showCreateCardModal = () => {
 const closeCreateModal = () => {
   showCreateModal.value = false
   newCard.value = {
-    cardType: '普通',
+    cardType: getPreferredCardType(),
     rechargeDays: 30
   }
 }
@@ -1242,21 +1145,13 @@ const createCard = async () => {
       return
     }
 
-    const response = await fetch('/api/recharge-cards', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    })
-
-    const data = await response.json()
+    const data = await apiPost('/api/recharge-cards', payload)
 
     if (data.success) {
       toast.success(data.message || '激活码创建成功')
 
       // 重新加载激活码列表
-      await loadActivationCards()
+      await refreshActivationCards()
 
       // 如果是绑定类型，重新加载已绑定Token列表
       if (payload.card_type === 'token_binding') {
@@ -1265,10 +1160,9 @@ const createCard = async () => {
 
       closeCreateModal()
     } else {
-      toast.error(data.error || data.message || '创建激活码失败')
+      toast.error(data.error || '创建激活码失败')
     }
   } catch (error) {
-    console.error('创建激活码失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isCreating.value = false
@@ -1283,27 +1177,22 @@ const refreshCard = async (card: ActivationCard) => {
   refreshingCardId.value = card.id
 
   try {
-    const response = await fetch(`/api/tokens/${card.bound_token_id}/refresh`, {
-      method: 'POST'
-    })
+    const data = await apiPost(`/api/tokens/${card.bound_token_id}/refresh`)
 
-    const data = await response.json()
-
-    if (data.success) {
+    if (data.success && data.data) {
       toast.success(data.message || 'Token信息已刷新')
 
       // 更新本地Token数据
       const tokenIndex = tokens.value.findIndex(t => t.id === card.bound_token_id)
-      if (tokenIndex > -1 && data.data) {
+      if (tokenIndex > -1) {
         tokens.value[tokenIndex] = { ...tokens.value[tokenIndex], ...data.data }
       }
 
       // 不需要重新加载整个列表，Token数据已更新，界面会自动反映变化
     } else {
-      toast.error(data.error || data.message || 'Token刷新失败')
+      toast.error(data.error || 'Token刷新失败')
     }
   } catch (error) {
-    console.error('Token刷新失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     refreshingCardId.value = null
@@ -1326,27 +1215,22 @@ const confirmDelete = async () => {
   isDeleting.value = true
 
   try {
-    const response = await fetch(`/api/recharge-cards/${deletingCard.value.id}`, {
-      method: 'DELETE'
-    })
-
-    const data = await response.json()
+    const data = await apiDelete(`/api/recharge-cards/${deletingCard.value.id}`)
 
     if (data.success) {
       toast.success(data.message || '激活码删除成功')
 
       // 重新加载激活码列表
-      await loadActivationCards()
+      await refreshActivationCards()
 
       // 重新加载已绑定Token列表，更新绑定状态
       await loadBoundTokens()
 
       closeDeleteModal()
     } else {
-      toast.error(data.error || data.message || '删除激活码失败')
+      toast.error(data.error || '删除激活码失败')
     }
   } catch (error) {
-    console.error('删除激活码失败:', error)
     toast.error('网络错误，请重试')
   } finally {
     isDeleting.value = false
@@ -1355,23 +1239,6 @@ const confirmDelete = async () => {
 </script>
 
 <style scoped>
-/* 使用 Tabler 的默认样式，无需额外自定义 */
-
-/* 旋转动画 */
-.refresh-spin {
-  animation: refresh-rotate 1s linear infinite !important;
-  transform-origin: center center !important;
-  display: inline-block !important;
-}
-
-@keyframes refresh-rotate {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
 
 /* 鼠标指针 */
 .cursor-pointer {
@@ -1514,34 +1381,37 @@ const confirmDelete = async () => {
   color: #41464b;
 }
 
-/* 筛选卡片样式 */
 .cursor-pointer {
   cursor: pointer;
 }
 
-.cursor-pointer:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-}
+
+
+  .card-sm .avatar i {
+    font-size: 0.875rem;
+  }
 
 /* 移动端响应式设计 */
-@media (max-width: 576px) {
-  /* 移动端统计卡片优化 */
-  .card-sm {
-    margin-bottom: 0.75rem;
+@media (max-width: 575.98px) {
+  /* 更紧凑的间隔 */
+  .row.mb-4 > [class*="col-"] {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    margin-bottom: 0.5rem;
   }
 
+  /* 更小的卡片内边距 */
   .card-sm .card-body {
-    padding: 0.75rem;
+    padding: 0.5rem;
   }
 
+  /* 字体大小调整 */
   .card-sm .h1 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
   }
 
   .card-sm .font-weight-medium {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
   }
 
   .card-sm .text-muted {
@@ -1567,5 +1437,21 @@ const confirmDelete = async () => {
   .card-sm .col-auto:last-child {
     text-align: right;
   }
+}
+
+/* 刷新动画 */
+@keyframes refresh-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh-spin {
+  animation: refresh-rotate 1s linear infinite;
+  transform-origin: center center;
+  display: inline-block;
 }
 </style>

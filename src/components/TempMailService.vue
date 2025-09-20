@@ -1,10 +1,10 @@
 <template>
-  <!-- 邮件订阅悬浮窗 -->
-  <div v-if="showPanel && hasEmailSubscriptionPermission" class="floating-panel">
+  <!-- 临时邮箱悬浮窗 -->
+  <div v-if="showPanel && hasTempMailServicePermission" class="floating-panel temp-mail-panel">
     <div class="panel-header">
       <h6 class="panel-title">
-        <i class="bi bi-envelope me-2"></i>
-        邮件订阅
+        <i class="bi bi-mailbox me-2"></i>
+        临时邮箱
       </h6>
       <button type="button" class="btn-close btn-close-sm" @click="closePanel"></button>
     </div>
@@ -17,7 +17,7 @@
             type="email"
             class="form-control"
             placeholder="请输入邮箱地址"
-            :readonly="isConnected || isSubscribing"
+            :readonly="isPolling || isStartingPoll"
           >
           <button
             type="button"
@@ -49,8 +49,8 @@
           </button>
         </div>
       </div>
-      <div v-if="connectionStatus" class="alert alert-info small py-2 mb-3">
-        {{ connectionStatus }}
+      <div v-if="statusMessage" class="alert alert-info small py-2 mb-3">
+        {{ statusMessage }}
       </div>
       <div class="d-flex gap-2">
         <button
@@ -65,14 +65,14 @@
         </button>
         <button
           type="button"
-          :class="['btn', 'btn-sm', 'flex-grow-1', isConnected ? 'btn-danger' : 'btn-success']"
-          @click="isConnected ? disconnectWebSocket() : subscribeEmail()"
-          :disabled="!email || isSubscribing"
+          :class="['btn', 'btn-sm', 'flex-grow-1', isPolling ? 'btn-danger' : 'btn-success']"
+          @click="isPolling ? stopPolling() : startPolling()"
+          :disabled="!email || isStartingPoll"
         >
-          <i v-if="isSubscribing" class="bi bi-arrow-clockwise refresh-spin me-1"></i>
-          <i v-else-if="isConnected" class="bi bi-x-lg me-1"></i>
+          <i v-if="isStartingPoll" class="bi bi-arrow-clockwise refresh-spin me-1"></i>
+          <i v-else-if="isPolling" class="bi bi-x-lg me-1"></i>
           <i v-else class="bi bi-check-lg me-1"></i>
-          {{ isSubscribing ? '连接中...' : (isConnected ? '断开连接' : '订阅邮件') }}
+          {{ isStartingPoll ? '启动中...' : (isPolling ? '停止监听' : '监听邮件') }}
         </button>
       </div>
     </div>
@@ -85,15 +85,15 @@ import { toast } from '../utils/toast'
 import { showFloatingPanel, closeFloatingPanel, isFloatingPanelVisible } from '../utils/floatingPanelState'
 import { PermissionManager } from '../types/permissions'
 
-const showPanel = computed(() => isFloatingPanelVisible('email-subscription'))
-const hasEmailSubscriptionPermission = computed(() => PermissionManager.hasEmailSubscription())
+const showPanel = computed(() => isFloatingPanelVisible('temp-mail'))
+const hasTempMailServicePermission = computed(() => PermissionManager.hasTempMailService())
 const email = ref('')
 const verificationCode = ref('')
-const connectionStatus = ref('')
+const statusMessage = ref('')
 const isGenerating = ref(false)
-const isSubscribing = ref(false)
-const isConnected = ref(false)
-let websocket: WebSocket | null = null
+const isStartingPoll = ref(false)
+const isPolling = ref(false)
+let pollingInterval: number | null = null
 
 // 复制到剪贴板
 const copyToClipboard = async (text: string, label: string) => {
@@ -117,130 +117,135 @@ const copyToClipboard = async (text: string, label: string) => {
   }
 }
 
-// 生成邮箱
+// 生成临时邮箱
 const generateEmail = async () => {
   isGenerating.value = true
   try {
-    const response = await fetch('/api/email-subscribe/generate-mail')
+    const response = await fetch('/api/temp-mail/generate-email')
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
     const data = await response.json()
 
-    if (data.success && data.data?.email) {
-      email.value = data.data.email
+    if (data.email) {
+      email.value = data.email
       verificationCode.value = ''
-      connectionStatus.value = ''
-      toast.success(data.message || '邮箱生成成功')
+      toast.success('临时邮箱生成成功')
     } else {
-      toast.error(data.message || '邮箱生成失败')
+      toast.error('邮箱生成失败：响应中没有邮箱地址')
     }
   } catch (error) {
-    toast.error('生成邮箱失败，请稍后重试')
+    const errorMessage = error instanceof Error ? error.message : '未知错误'
+    toast.error(`生成邮箱失败：${errorMessage}`)
   } finally {
     isGenerating.value = false
   }
 }
 
-// 订阅邮件
-const subscribeEmail = () => {
-  if (!email.value) {
-    toast.error('请先生成邮箱地址')
-    return
-  }
-
-  isSubscribing.value = true
-  verificationCode.value = ''
-  connectionStatus.value = '正在连接验证码推送服务...'
-
-  // 关闭之前的连接
-  if (websocket) {
-    websocket.close()
-  }
-
-  // 对邮箱地址进行URL编码
-  const encodedEmail = encodeURIComponent(email.value)
-
-  // 使用相对路径，通过 Nginx 反向代理
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/mail/api/subscribe/${encodedEmail}`
+// 获取邮件并提取验证码
+const checkEmails = async () => {
+  if (!email.value) return
 
   try {
-    websocket = new WebSocket(wsUrl)
+    const encodedEmail = encodeURIComponent(email.value)
+    const response = await fetch(`/api/temp-mail/get-emails?email=${encodedEmail}`)
 
-    websocket.onopen = () => {
-      isConnected.value = true
-      isSubscribing.value = false
-      connectionStatus.value = '已连接到推送服务，等待验证码...'
-      toast.info('已连接到验证码推送服务')
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    websocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
+    const data = await response.json()
 
-        if (data.status === 'connected') {
-          connectionStatus.value = data.message || '已连接到推送服务，等待验证码...'
-        } else if (data.code) {
-          verificationCode.value = data.code
-          toast.success(`验证码已接收: ${data.code}`)
+    if (data.emails && data.emails.length > 0) {
+      // 筛选来自 support@augmentcode.com 的邮件
+      const augmentEmails = data.emails.filter((email: any) =>
+        email.from === 'support@augmentcode.com' &&
+        email.subject === 'Welcome to Augment Code' &&
+        email.content.includes('Your verification code is:')
+      )
 
-          // 不自动关闭连接，用户可能需要重复收件
+      if (augmentEmails.length > 0) {
+        // 取最新的邮件（timestamp 最大的）
+        const latestEmail = augmentEmails.reduce((latest: any, current: any) =>
+          current.timestamp > latest.timestamp ? current : latest
+        )
+
+        // 提取验证码
+        const codeMatch = latestEmail.content.match(/Your verification code is:\s*(\d+)/)
+        if (codeMatch && codeMatch[1]) {
+          const newCode = codeMatch[1]
+
+          if (newCode !== verificationCode.value) {
+            verificationCode.value = newCode
+            toast.success(`收到新验证码: ${newCode}`)
+          }
         }
-      } catch (error) {
       }
     }
-
-    websocket.onerror = (error) => {
-      connectionStatus.value = '连接失败，请稍后重试'
-      toast.error('连接验证码推送服务失败')
-      isConnected.value = false
-      isSubscribing.value = false
-    }
-
-    websocket.onclose = () => {
-      connectionStatus.value = '连接已关闭'
-      isConnected.value = false
-      isSubscribing.value = false
-    }
   } catch (error) {
-    toast.error('创建连接失败')
-    isSubscribing.value = false
+    const errorMessage = error instanceof Error ? error.message : '未知错误'
+    statusMessage.value = `获取邮件失败：${errorMessage}`
   }
 }
 
-// 断开WebSocket连接
-const disconnectWebSocket = () => {
-  if (websocket) {
-    websocket.close()
-    websocket = null
+// 开始轮询邮件
+const startPolling = () => {
+  if (!email.value) {
+    toast.error('请先输入邮箱地址或生成临时邮箱')
+    return
   }
-  isConnected.value = false
-  isSubscribing.value = false
-  connectionStatus.value = '连接已断开'
-  toast.info('已断开验证码推送服务')
+
+  isStartingPoll.value = true
+  verificationCode.value = ''
+  statusMessage.value = '开始监听邮件...'
+
+  // 停止之前的轮询
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+  }
+
+  // 立即检查一次
+  checkEmails()
+
+  // 每5秒检查一次邮件
+  pollingInterval = setInterval(checkEmails, 5000)
+  
+  isPolling.value = true
+  isStartingPoll.value = false
+  statusMessage.value = '正在监听邮件，等待验证码...'
+  toast.info('开始监听邮件')
+}
+
+// 停止轮询
+const stopPolling = () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+  isPolling.value = false
+  statusMessage.value = '已停止监听邮件'
+  toast.info('已停止监听邮件')
 }
 
 // 关闭悬浮窗
 const closePanel = () => {
   closeFloatingPanel()
-  if (websocket) {
-    websocket.close()
-    websocket = null
-  }
-  isConnected.value = false
-  isSubscribing.value = false
-  connectionStatus.value = ''
+  stopPolling()
 }
 
-// 组件卸载时清理WebSocket连接
+// 组件卸载时清理轮询
 onUnmounted(() => {
-  if (websocket) {
-    websocket.close()
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
   }
 })
 </script>
 
 <style scoped>
 
-.floating-panel {
+.floating-panel.temp-mail-panel {
   position: fixed;
   bottom: 100px;
   left: 20px;
@@ -274,7 +279,6 @@ onUnmounted(() => {
   padding: 16px;
 }
 
-
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -288,12 +292,14 @@ onUnmounted(() => {
 
 /* 响应式设计 */
 @media (max-width: 576px) {
-  .floating-panel {
+  .floating-button.temp-mail {
+    left: 20px; /* 移动端调整位置 */
+  }
+  
+  .floating-panel.temp-mail-panel {
     width: 200px;
     left: 5px;
-    right: 20px;
     bottom: 5px;
   }
 }
-
 </style>

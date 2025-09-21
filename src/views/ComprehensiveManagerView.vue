@@ -6,7 +6,7 @@
       <div class="row g-2 align-items-center">
         <div class="col">
           <h2 class="page-title">
-            Token 管理
+            综合管理
           </h2>
           <div class="text-muted mt-1">管理您的 Token</div>
         </div>
@@ -42,6 +42,43 @@
               <i :class="['bi', privacyMode ? 'bi-eye-slash' : 'bi-eye']"></i>
             </button>
 
+            <!-- 批量选择按钮 -->
+            <button
+              type="button"
+              :class="['btn', isBatchSelectMode ? 'btn-danger' : 'btn-outline-secondary']"
+              @click="toggleBatchSelectMode"
+              :title="isBatchSelectMode ? '退出批量选择' : '开启批量选择'"
+            >
+              <i :class="['bi', isBatchSelectMode ? 'bi-square' : 'bi-check2-square']"></i>
+              <span class="d-none d-lg-inline ms-1">
+                {{ isBatchSelectMode ? '退出选择' : '批量选择' }}
+              </span>
+            </button>
+
+            <!-- 批量操作按钮 -->
+            <div v-if="isBatchSelectMode" class="btn-group" role="group">
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                @click="toggleSelectAll"
+                :title="isAllSelected ? '取消全选' : '全选当前页'"
+              >
+                <i :class="['bi', isAllSelected ? 'bi-square' : (isPartialSelected ? 'bi-dash-square' : 'bi-check-square')]"></i>
+                <span class="d-none d-lg-inline ms-1">
+                  {{ isAllSelected ? '取消全选' : '全选' }}
+                </span>
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                @click="exportSelected"
+                :disabled="selectedCount === 0"
+                :title="`导出选中的 ${selectedCount} 项`"
+              >
+                <i class="bi bi-download"></i>
+                <span class="d-none d-lg-inline ms-1">导出 ({{ selectedCount }})</span>
+              </button>
+            </div>
 
             <button @click="showGetTokenModal" class="btn btn-success" title="获取 Token">
               <i class="bi bi-link-45deg me-2"></i>
@@ -83,6 +120,38 @@
             >
               <i :class="['bi', privacyMode ? 'bi-eye-slash' : 'bi-eye']"></i>
             </button>
+
+            <!-- 批量选择按钮 -->
+            <button
+              type="button"
+              :class="['btn', 'btn-sm', isBatchSelectMode ? 'btn-danger' : 'btn-outline-secondary']"
+              @click="toggleBatchSelectMode"
+              :title="isBatchSelectMode ? '退出批量选择' : '开启批量选择'"
+            >
+              <i :class="['bi', isBatchSelectMode ? 'bi-square' : 'bi-check2-square']"></i>
+            </button>
+
+            <!-- 批量操作按钮 -->
+            <div v-if="isBatchSelectMode" class="btn-group" role="group">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                @click="toggleSelectAll"
+                :title="isAllSelected ? '取消全选' : '全选当前页'"
+              >
+                <i :class="['bi', isAllSelected ? 'bi-square' : (isPartialSelected ? 'bi-dash-square' : 'bi-check-square')]"></i>
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-primary"
+                @click="exportSelected"
+                :disabled="selectedCount === 0"
+                :title="`导出选中的 ${selectedCount} 项`"
+              >
+                <i class="bi bi-download"></i>
+                <span class="badge bg-white text-primary ms-1">{{ selectedCount }}</span>
+              </button>
+            </div>
 
             <button @click="showGetTokenModal" class="btn btn-success btn-sm" title="获取 Token">
               <i class="bi bi-link-45deg"></i>
@@ -236,6 +305,7 @@
         <div v-for="item in comprehensiveItems" :key="item.id" class="col-sm-4 col-lg-3">
           <div :class="[
             'card',
+            'position-relative',
             {
               'bound-card': item.type === 'activation' || (item.type === 'token' && item.activation_code && item.activation_code !== '未绑定激活码' && getTokenStatus(item.bound_token) === '正常'),
               'unbound-card': item.type === 'token' && (!item.activation_code || item.activation_code === '未绑定激活码'),
@@ -243,6 +313,30 @@
               'invalid-card': item.bound_token && (getTokenStatus(item.bound_token) === '失效' || getTokenStatus(item.bound_token) === '耗尽')
             }
           ]">
+            <!-- 批量选择蒙版 -->
+            <div v-if="isBatchSelectMode"
+                 class="card-select-overlay"
+                 :class="{ 'selected': selectedItems.has(item.id) }"
+                 @click="toggleSelectItem(item.id)">
+              <div class="select-indicator">
+                <i v-if="selectedItems.has(item.id)" class="bi bi-check-circle-fill"></i>
+                <i v-else class="bi bi-circle"></i>
+              </div>
+            </div>
+
+            <!-- Public角标 -->
+            <div v-if="item.bound_token && item.bound_token.public === 'yes'"
+                 :class="[
+                   'public-badge',
+                   {
+                     'public-bound': item.type === 'activation' || (item.type === 'token' && item.activation_code && item.activation_code !== '未绑定激活码' && getTokenStatus(item.bound_token) === '正常'),
+                     'public-unbound': item.type === 'token' && (!item.activation_code || item.activation_code === '未绑定激活码'),
+                     'public-suspended': item.bound_token && getTokenStatus(item.bound_token) === '暂停',
+                     'public-invalid': item.bound_token && (getTokenStatus(item.bound_token) === '失效' || getTokenStatus(item.bound_token) === '耗尽')
+                   }
+                 ]">
+              <div class="public-triangle"></div>
+            </div>
             <div class="card-body">
               <!-- 卡片头部 -->
               <div class="d-flex align-items-start mb-2">
@@ -387,6 +481,16 @@
                 <table class="table table-vcenter card-table">
                   <thead>
                     <tr>
+                      <th v-if="isBatchSelectMode" class="w-1">
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          :checked="isAllSelected"
+                          :indeterminate="isPartialSelected"
+                          @change="toggleSelectAll"
+                          title="全选/取消全选"
+                        />
+                      </th>
                       <th>邮箱备注/激活码</th>
                       <th>Token状态</th>
                       <th>激活码状态</th>
@@ -396,12 +500,25 @@
                   </thead>
                   <tbody>
                     <tr v-if="comprehensiveItems.length === 0">
-                      <td colspan="5" class="text-center py-4 text-muted">
+                      <td :colspan="isBatchSelectMode ? 6 : 5" class="text-center py-4 text-muted">
                         暂无 Token 数据
                       </td>
                     </tr>
                     <tr v-else v-for="item in comprehensiveItems" :key="item.id">
-                      <td>
+                      <td v-if="isBatchSelectMode" class="w-1">
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          :checked="selectedItems.has(item.id)"
+                          @change="toggleSelectItem(item.id)"
+                        />
+                      </td>
+                      <td :class="{
+                        'public-cell-bound': item.bound_token && item.bound_token.public === 'yes' && (item.type === 'activation' || (item.type === 'token' && item.activation_code && item.activation_code !== '未绑定激活码' && getTokenStatus(item.bound_token) === '正常')),
+                        'public-cell-unbound': item.bound_token && item.bound_token.public === 'yes' && item.type === 'token' && (!item.activation_code || item.activation_code === '未绑定激活码'),
+                        'public-cell-suspended': item.bound_token && item.bound_token.public === 'yes' && getTokenStatus(item.bound_token) === '暂停',
+                        'public-cell-invalid': item.bound_token && item.bound_token.public === 'yes' && (getTokenStatus(item.bound_token) === '失效' || getTokenStatus(item.bound_token) === '耗尽')
+                      }">
                         <div class="d-flex flex-column">
                           <div class="fw-bold">
                             {{ formatEmailNote(item.email_note) }}
@@ -1224,6 +1341,14 @@
         <div class="modal-header">
           <h5 class="modal-title">获取 Token</h5>
           <button type="button" class="btn-close" @click="closeGetModal"></button>
+          <!-- URL倒计时进度条光效 -->
+          <div v-if="urlCountdown > 0" class="countdown-glow-bar"
+               :class="{
+                 'countdown-green': urlCountdown / 300 > 0.5,
+                 'countdown-orange': urlCountdown / 300 <= 0.5 && urlCountdown / 300 > 0.2,
+                 'countdown-red': urlCountdown / 300 <= 0.2
+               }"
+               :style="{ width: (urlCountdown / 300 * 100) + '%' }"></div>
         </div>
         <div class="modal-body">
           <!-- 步骤指示器 -->
@@ -1488,6 +1613,14 @@
   </div>
   </Transition>
 
+  <!-- 导出数据模态框 -->
+  <ExportModal
+    :show="showExportModal"
+    :selected-count="selectedCount"
+    :export-data="exportData"
+    @close="closeExportModal"
+  />
+
   <!-- 堆叠式悬浮按钮组（包含批量刷新和批量验证功能） -->
   <StackedFloatingButtons
     :show-batch-refresh="true"
@@ -1522,12 +1655,16 @@ import { useRouter } from 'vue-router'
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api'
 import { toast } from '../utils/toast'
 import StackedFloatingButtons from '../components/StackedFloatingButtons.vue'
+import ExportModal from '../components/ExportModal.vue'
+import { useBatchSelect } from '../composables/useBatchSelect'
 import { PermissionManager } from '../types/permissions'
 
 const router = useRouter()
 
 // 权限检查
 const hasPermission = computed(() => PermissionManager.hasComprehensiveManagement())
+
+
 
 // 监听权限变化，无权限时跳转到 Token 管理
 watch(hasPermission, (newValue) => {
@@ -1602,6 +1739,24 @@ const isDragOver = ref(false)
 const csvFileInput = ref<HTMLInputElement | null>(null)
 const isLoading = ref(false)
 
+// 批量选择功能
+const {
+  isBatchSelectMode,
+  selectedItems,
+  showExportModal,
+  exportData,
+  isAllSelected,
+  isPartialSelected,
+  selectedCount,
+  toggleBatchSelectMode,
+  toggleSelectItem,
+  selectAll,
+  deselectAll,
+  toggleSelectAll,
+  exportSelected: baseExportSelected,
+  closeExportModal
+} = useBatchSelect(() => allComprehensiveItems.value.filter(item => item.bound_token))
+
 
 
 
@@ -1652,12 +1807,85 @@ const hideFloatingProgress = () => {
   showFloatingProgress.value = false
 }
 
+// 自定义导出方法（覆盖基础导出方法以处理综合管理的特殊逻辑）
+
+const exportSelected = () => {
+  const selectedItemsData = allComprehensiveItems.value.filter(item =>
+    selectedItems.value.has(item.id) && item.bound_token
+  )
+
+  if (selectedItemsData.length === 0) {
+    toast.warning('请选择至少一个有效的Token项目')
+    return
+  }
+
+  const exportItems = selectedItemsData.map(item => ({
+    tenant_url: item.bound_token.tenant_url || '',
+    access_token: item.bound_token.access_token || '',
+    portal_url: item.bound_token.portal_url || '',
+    email_note: item.email_note || ''
+  }))
+
+  if (exportItems.length === 1) {
+    exportData.value = JSON.stringify(exportItems[0], null, 2)
+  } else {
+    exportData.value = JSON.stringify(exportItems, null, 2)
+  }
+
+  showExportModal.value = true
+}
+
+
+
 // 获取Token流程相关数据
 const showGetModal = ref(false)
 const getTokenStep = ref(1)
 const authUrl = ref('')
 const authResponse = ref('')
 const portalUrl = ref('')
+
+// 倒计时相关数据
+const urlCountdown = ref(0) // 剩余秒数
+const countdownTimer = ref<number | null>(null)
+
+// 倒计时格式化显示
+const countdownDisplay = computed(() => {
+  if (urlCountdown.value <= 0) return ''
+
+  const minutes = Math.floor(urlCountdown.value / 60)
+  const seconds = urlCountdown.value % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+})
+
+// 启动倒计时
+const startCountdown = () => {
+  // 清除现有计时器
+  if (countdownTimer.value) {
+    clearInterval(countdownTimer.value)
+  }
+
+  // 设置5分钟倒计时
+  urlCountdown.value = 300 // 5分钟 = 300秒
+
+  countdownTimer.value = setInterval(() => {
+    urlCountdown.value--
+
+    if (urlCountdown.value <= 0) {
+      clearInterval(countdownTimer.value!)
+      countdownTimer.value = null
+      toast.warning('授权URL已过期，请重新生成')
+    }
+  }, 1000)
+}
+
+// 停止倒计时
+const stopCountdown = () => {
+  if (countdownTimer.value) {
+    clearInterval(countdownTimer.value)
+    countdownTimer.value = null
+  }
+  urlCountdown.value = 0
+}
 const obtainedToken = ref('')
 const isGettingToken = ref(false)
 const codeChallenge = ref('')
@@ -3040,10 +3268,12 @@ const showGetTokenModal = () => {
   lastGenerateTime.value = 0  // 重置冷却时间
   currentTime.value = Date.now()
   stopCooldownTimer()  // 停止定时器
+  stopCountdown()  // 停止URL倒计时
   showGetModal.value = true
 }
 
 const closeGetModal = () => {
+  stopCountdown()  // 停止URL倒计时
   showGetModal.value = false
 }
 
@@ -3070,6 +3300,9 @@ const generateAuthUrl = async () => {
       lastGenerateTime.value = Date.now()
       currentTime.value = Date.now()
       startCooldownTimer()
+
+      // 启动5分钟倒计时
+      startCountdown()
 
       toast.success(data.message || '授权URL生成成功')
     } else {
@@ -3446,6 +3679,7 @@ const executeApplication = async (app: any) => {
 
 onUnmounted(() => {
   stopCooldownTimer()
+  stopCountdown()  // 清理URL倒计时
 })
 </script>
 
@@ -4104,5 +4338,181 @@ onUnmounted(() => {
   box-shadow: 0 6px 20px rgba(220, 53, 69, 0.3);
   border-color: #c82333 !important;
   opacity: 0.9;
+}
+
+/* 倒计时进度条光效 */
+.countdown-glow-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  transition: width 1s ease-in-out, background 0.5s ease-in-out, box-shadow 0.5s ease-in-out;
+}
+
+/* 绿色状态 (>50%) */
+.countdown-green {
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+  box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+  animation: glow-pulse-green 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse-green {
+  0% {
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(40, 167, 69, 0.8);
+  }
+}
+
+/* 橙色状态 (30%-50%) */
+.countdown-orange {
+  background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
+  animation: glow-pulse-orange 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse-orange {
+  0% {
+    box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(255, 193, 7, 0.8);
+  }
+}
+
+/* 红色状态 (<30%) */
+.countdown-red {
+  background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+  box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+  animation: glow-pulse-red 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse-red {
+  0% {
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(220, 53, 69, 0.9);
+  }
+}
+
+/* Public角标样式 */
+.public-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.public-triangle {
+  width: 0;
+  height: 0;
+  border-left: 24px solid #28a745;
+  border-bottom: 24px solid transparent;
+  position: relative;
+  border-top-left-radius: 6px;
+}
+
+.public-triangle::after {
+  content: 'P';
+  position: absolute;
+  top: 2px;
+  left: -18px;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* 不同状态的角标颜色 */
+.public-bound .public-triangle {
+  border-left-color: #28a745; /* 绿色 - 正常状态 */
+}
+
+.public-unbound .public-triangle {
+  border-left-color: #ffc107; /* 黄色 - 未绑定状态 */
+}
+
+.public-suspended .public-triangle {
+  border-left-color: #6c757d; /* 灰色 - 暂停状态 */
+}
+
+.public-invalid .public-triangle {
+  border-left-color: #dc3545; /* 红色 - 失效状态 */
+}
+
+/* 卡片选择蒙版样式 */
+.card-select-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.card-select-overlay:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.card-select-overlay.selected {
+  opacity: 1;
+  background: rgba(13, 110, 253, 0.15);
+  border: 2px solid #0d6efd;
+}
+
+.card-select-overlay.selected:hover {
+  background: rgba(13, 110, 253, 0.25);
+}
+
+.select-indicator {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #0d6efd;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.card-select-overlay.selected .select-indicator {
+  background: #0d6efd;
+  color: white;
+}
+
+.card-select-overlay:hover .select-indicator {
+  transform: scale(1.1);
+}
+
+/* 列表模式的Public竖条标记 */
+.public-cell-bound {
+  border-left: 2px solid #28a745 !important; /* 绿色 - 正常状态 */
+}
+
+.public-cell-unbound {
+  border-left: 2px solid #ffc107 !important; /* 黄色 - 未绑定状态 */
+}
+
+.public-cell-suspended {
+  border-left: 2px solid #6c757d !important; /* 灰色 - 暂停状态 */
+}
+
+.public-cell-invalid {
+  border-left: 2px solid #dc3545 !important; /* 红色 - 失效状态 */
 }
 </style>

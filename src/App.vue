@@ -52,7 +52,7 @@ const isLoginPage = computed(() => route.path === '/login')
 
   <!-- 堆叠式悬浮按钮组（在非综合管理页面显示，不包含批量刷新功能） -->
   <StackedFloatingButtons
-    v-if="!isLoginPage && route.name !== 'comprehensive-manager'"
+    v-if="!isLoginPage && route.name !== 'home'"
     :show-batch-refresh="false"
   />
 

@@ -28,7 +28,43 @@
           </div>
           <div class="col-auto ms-auto d-print-none">
             <div class="btn-list">
+              <!-- 批量选择按钮 -->
+              <button
+                type="button"
+                :class="['btn', isBatchSelectMode ? 'btn-danger' : 'btn-outline-secondary']"
+                @click="toggleBatchSelectMode"
+                :title="isBatchSelectMode ? '退出批量选择' : '开启批量选择'"
+              >
+                <i :class="['bi', isBatchSelectMode ? 'bi-square' : 'bi-check2-square']"></i>
+                <span class="d-none d-lg-inline ms-1">
+                  {{ isBatchSelectMode ? '退出选择' : '批量选择' }}
+                </span>
+              </button>
 
+              <!-- 批量操作按钮 -->
+              <div v-if="isBatchSelectMode" class="btn-group" role="group">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  @click="toggleSelectAll"
+                  :title="isAllSelected ? '取消全选' : '全选'"
+                >
+                  <i :class="['bi', isAllSelected ? 'bi-square' : (isPartialSelected ? 'bi-dash-square' : 'bi-check-square')]"></i>
+                  <span class="d-none d-lg-inline ms-1">
+                    {{ isAllSelected ? '取消全选' : '全选' }}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  @click="exportSelected"
+                  :disabled="selectedCount === 0"
+                  :title="`导出选中的 ${selectedCount} 项`"
+                >
+                  <i class="bi bi-download"></i>
+                  <span class="d-none d-lg-inline ms-1">导出 ({{ selectedCount }})</span>
+                </button>
+              </div>
 
               <button @click="validateAllTokens" class="btn btn-warning" title="验证 Token">
                 <i class="bi bi-check-circle me-sm-2"></i>
@@ -76,6 +112,16 @@
             <table class="table table-vcenter card-table">
               <thead>
                 <tr>
+                  <th v-if="isBatchSelectMode" class="w-1">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      :checked="isAllSelected"
+                      :indeterminate="isPartialSelected"
+                      @change="toggleSelectAll"
+                      title="全选/取消全选"
+                    />
+                  </th>
                   <th>邮箱备注</th>
                   <th>创建时间</th>
                   <th>过期时间</th>
@@ -86,17 +132,25 @@
               </thead>
               <tbody>
                 <tr v-if="isLoading">
-                  <td colspan="6" class="text-center py-4 text-muted">
+                  <td :colspan="isBatchSelectMode ? 7 : 6" class="text-center py-4 text-muted">
                     <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
                     加载中...
                   </td>
                 </tr>
                 <tr v-else-if="tokens.length === 0">
-                  <td colspan="6" class="text-center py-4 text-muted">
+                  <td :colspan="isBatchSelectMode ? 7 : 6" class="text-center py-4 text-muted">
                     暂无 Token 数据
                   </td>
                 </tr>
                 <tr v-else v-for="token in tokens" :key="token.id">
+                  <td v-if="isBatchSelectMode" class="w-1">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      :checked="selectedItems.has(token.id)"
+                      @change="toggleSelectItem(token.id)"
+                    />
+                  </td>
                   <td class="text-muted">{{ token.email_note || '未设置备注' }}</td>
                   <td class="text-muted">{{ token.created_at }}</td>
                   <td :class="getDaysColorClass(token)">
@@ -199,6 +253,14 @@
           <div class="modal-header">
             <h5 class="modal-title">获取 Token</h5>
             <button type="button" class="btn-close" @click="closeGetModal"></button>
+            <!-- URL倒计时进度条光效 -->
+            <div v-if="urlCountdown > 0" class="countdown-glow-bar"
+                 :class="{
+                   'countdown-green': urlCountdown / 300 > 0.5,
+                   'countdown-orange': urlCountdown / 300 <= 0.5 && urlCountdown / 300 > 0.2,
+                   'countdown-red': urlCountdown / 300 <= 0.2
+                 }"
+                 :style="{ width: (urlCountdown / 300 * 100) + '%' }"></div>
           </div>
           <div class="modal-body">
             <!-- 步骤指示器 -->
@@ -959,6 +1021,14 @@
   </div>
   </Transition>
 
+  <!-- 导出数据模态框 -->
+  <ExportModal
+    :show="showExportModal"
+    :selected-count="selectedCount"
+    :export-data="exportData"
+    @close="closeExportModal"
+  />
+
   <!-- 右下角悬浮进度窗口 -->
   <div
     v-if="showFloatingProgress"
@@ -1001,10 +1071,30 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { toast } from '../utils/toast'
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api'
+import ExportModal from '../components/ExportModal.vue'
+import { useBatchSelect } from '../composables/useBatchSelect'
 import { PermissionManager } from '../types/permissions'
 
 // 权限检查
 const hasPermission = computed(() => PermissionManager.hasTokenManagement())
+
+// 批量选择功能
+const {
+  isBatchSelectMode,
+  selectedItems,
+  showExportModal,
+  exportData,
+  isAllSelected,
+  isPartialSelected,
+  selectedCount,
+  toggleBatchSelectMode,
+  toggleSelectItem,
+  selectAll,
+  deselectAll,
+  toggleSelectAll,
+  exportSelected,
+  closeExportModal
+} = useBatchSelect(() => tokens.value)
 
 
 
@@ -1123,6 +1213,8 @@ const previousTokenData = ref<Map<string, TokenSnapshot>>(new Map())
 // 悬浮进度窗口
 const showFloatingProgress = ref(false)
 
+
+
 // 悬浮进度窗口计算属性
 const progressTitle = computed(() => {
   if (isBatchRefreshing.value) return '批量刷新进行中'
@@ -1171,6 +1263,8 @@ const progressText = computed(() => {
 const hideFloatingProgress = () => {
   showFloatingProgress.value = false
 }
+
+
 
 // 计算即将到期的Token（时间<=1天且次数>45次）
 const getExpiringTokens = () => {
@@ -1329,6 +1423,49 @@ const authUrl = ref('')
 const authResponse = ref('')
 const portalUrl = ref('')
 const obtainedToken = ref('')
+
+// 倒计时相关数据
+const urlCountdown = ref(0) // 剩余秒数
+const countdownTimer = ref<number | null>(null)
+
+// 倒计时格式化显示
+const countdownDisplay = computed(() => {
+  if (urlCountdown.value <= 0) return ''
+
+  const minutes = Math.floor(urlCountdown.value / 60)
+  const seconds = urlCountdown.value % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+})
+
+// 启动倒计时
+const startCountdown = () => {
+  // 清除现有计时器
+  if (countdownTimer.value) {
+    clearInterval(countdownTimer.value)
+  }
+
+  // 设置5分钟倒计时
+  urlCountdown.value = 300 // 5分钟 = 300秒
+
+  countdownTimer.value = setInterval(() => {
+    urlCountdown.value--
+
+    if (urlCountdown.value <= 0) {
+      clearInterval(countdownTimer.value!)
+      countdownTimer.value = null
+      toast.warning('授权URL已过期，请重新生成')
+    }
+  }, 1000)
+}
+
+// 停止倒计时
+const stopCountdown = () => {
+  if (countdownTimer.value) {
+    clearInterval(countdownTimer.value)
+    countdownTimer.value = null
+  }
+  urlCountdown.value = 0
+}
 const isGettingToken = ref(false)
 const codeChallenge = ref('')
 const codeVerifier = ref('')
@@ -1371,6 +1508,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopCooldownTimer()
+  stopCountdown()  // 清理URL倒计时
 
   // 清理防抖定时器
   if (refreshDebounceTimer) {
@@ -1807,10 +1945,12 @@ const showGetTokenModal = () => {
   lastGenerateTime.value = 0  // 重置冷却时间
   currentTime.value = Date.now()
   stopCooldownTimer()  // 停止定时器
+  stopCountdown()  // 停止URL倒计时
   showGetModal.value = true
 }
 
 const closeGetModal = () => {
+  stopCountdown()  // 停止URL倒计时
   showGetModal.value = false
 }
 
@@ -1839,6 +1979,9 @@ const generateAuthUrl = async () => {
       lastGenerateTime.value = Date.now()
       currentTime.value = Date.now()
       startCooldownTimer()
+
+      // 启动5分钟倒计时
+      startCountdown()
 
       toast.success(data.message || '授权URL生成成功')
     } else {
@@ -3036,5 +3179,62 @@ const confirmBatchRefresh = async () => {
   animation: refresh-rotate 1s linear infinite;
   transform-origin: center center;
   display: inline-block;
+}
+
+/* 倒计时进度条光效 */
+.countdown-glow-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  transition: width 1s ease-in-out, background 0.5s ease-in-out, box-shadow 0.5s ease-in-out;
+}
+
+/* 绿色状态 (>50%) */
+.countdown-green {
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+  box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+  animation: glow-pulse-green 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse-green {
+  0% {
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(40, 167, 69, 0.8);
+  }
+}
+
+/* 橙色状态 (30%-50%) */
+.countdown-orange {
+  background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
+  animation: glow-pulse-orange 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse-orange {
+  0% {
+    box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(255, 193, 7, 0.8);
+  }
+}
+
+/* 红色状态 (<30%) */
+.countdown-red {
+  background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+  box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+  animation: glow-pulse-red 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse-red {
+  0% {
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(220, 53, 69, 0.9);
+  }
 }
 </style>

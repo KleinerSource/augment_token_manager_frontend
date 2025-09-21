@@ -84,7 +84,25 @@ export class PermissionManager {
 
   // 检查是否有特定的授权权限
   static hasLicensePermission(permission: string): boolean {
-    return this.licensePermissions?.includes(permission) ?? false
+    // 优先检查原始授权权限
+    if (this.licensePermissions?.includes(permission)) {
+      return true
+    }
+
+    // 如果原始授权权限不可用，从用户权限推断
+    const permissions = this.getPermissions()
+    if (!permissions) return false
+
+    switch (permission) {
+      case 'advanced':
+        return permissions.comprehensive_management || permissions.activation_code_management || permissions.uuid_management
+      case 'emailsubscription':
+        return permissions.email_subscription
+      case 'tempmail':
+        return permissions.temp_mail_service
+      default:
+        return false
+    }
   }
 
   // 根据授权权限设置用户权限

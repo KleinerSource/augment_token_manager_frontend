@@ -7,9 +7,9 @@
       <button
         v-if="showBatchValidate && hasAdvancedPermission"
         class="sub-floating-btn validate-btn"
-        :disabled="isBatchValidating"
+        :disabled="isLoading || isBatchValidating"
         @click="handleBatchValidateClick"
-        :title="isBatchValidating ? '验证中...' : '批量验证'"
+        :title="isLoading ? '加载中...' : (isBatchValidating ? '验证中...' : (isBatchSelectMode && selectedCount > 0 ? `验证选中的 ${selectedCount} 个Token` : '批量验证'))"
       >
         <i
           :class="['bi', isBatchValidating ? 'bi-check-circle refresh-spin' : 'bi-check-circle']"
@@ -21,9 +21,9 @@
       <button
         v-if="showBatchRefresh && hasAdvancedPermission"
         class="sub-floating-btn refresh-btn"
-        :disabled="isBatchRefreshing"
+        :disabled="isLoading || isBatchRefreshing"
         @click="handleBatchRefreshClick"
-        :title="isBatchRefreshing ? '刷新中...' : '批量刷新'"
+        :title="isLoading ? '加载中...' : (isBatchRefreshing ? '刷新中...' : (isBatchSelectMode && selectedCount > 0 ? `刷新选中的 ${selectedCount} 个Token` : '批量刷新'))"
       >
         <i
           :class="['bi', isBatchRefreshing ? 'bi-arrow-clockwise refresh-spin' : 'bi-arrow-clockwise']"
@@ -81,13 +81,19 @@ interface Props {
   isBatchRefreshing?: boolean
   showBatchValidate?: boolean
   isBatchValidating?: boolean
+  isBatchSelectMode?: boolean
+  selectedCount?: number
+  isLoading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showBatchRefresh: false,
   isBatchRefreshing: false,
   showBatchValidate: false,
-  isBatchValidating: false
+  isBatchValidating: false,
+  isBatchSelectMode: false,
+  selectedCount: 0,
+  isLoading: false
 })
 
 // Emits

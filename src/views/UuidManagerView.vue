@@ -22,10 +22,15 @@
     <!-- 页面标题 -->
     <div class="page-header d-print-none">
       <div class="container-xl">
-        <div class="row g-2 align-items-center">
+        <!-- 页面标题行 -->
+        <div class="row">
           <div class="col">
             <h2 class="page-title">UUID 管理</h2>
           </div>
+        </div>
+
+        <!-- 操作按钮行 -->
+        <div class="row g-2 align-items-center mt-3">
           <div class="col-auto ms-auto d-print-none">
             <div class="btn-list">
               <button @click="showAddUuidModal" class="btn btn-primary" title="添加 UUID">

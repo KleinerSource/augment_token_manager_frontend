@@ -3,13 +3,18 @@
     <!-- 权限检查通过，显示内容 -->
     <div class="page-header d-print-none">
     <div class="container-xl">
-      <div class="row g-2 align-items-center">
+      <!-- 页面标题行 -->
+      <div class="row">
         <div class="col">
           <h2 class="page-title">
             综合管理
           </h2>
           <div class="text-muted mt-1">管理您的 Token</div>
         </div>
+      </div>
+
+      <!-- 操作按钮行 -->
+      <div class="row g-2 align-items-center mt-3">
         <div class="col-auto ms-auto d-print-none">
           <!-- 大屏按钮 -->
           <div class="btn-list d-none d-md-flex">
@@ -31,6 +36,75 @@
               >
                 <i class="bi bi-table"></i>
               </button>
+            </div>
+
+            <!-- 排序下拉菜单 -->
+            <div class="dropdown" ref="sortDropdownRef">
+              <button
+                class="btn btn-outline-secondary dropdown-toggle"
+                type="button"
+                @click="toggleSortDropdown"
+                :title="getSortModeTitle()"
+              >
+                <i class="bi bi-sort-down me-1"></i>
+                <span class="d-none d-lg-inline">
+                  {{ getSortModeText() }}
+                </span>
+              </button>
+              <ul class="dropdown-menu" :class="{ 'show': isSortDropdownOpen }">
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('default')"
+                    :class="{ 'active': sortMode === 'default' }"
+                  >
+                    <i class="bi bi-list me-2"></i>默认排序
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('credits-desc')"
+                    :class="{ 'active': sortMode === 'credits-desc' }"
+                  >
+                    <i class="bi bi-sort-numeric-down me-2"></i>次数 ↓
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('credits-asc')"
+                    :class="{ 'active': sortMode === 'credits-asc' }"
+                  >
+                    <i class="bi bi-sort-numeric-up me-2"></i>次数 ↑
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('days-desc')"
+                    :class="{ 'active': sortMode === 'days-desc' }"
+                  >
+                    <i class="bi bi-calendar-date me-2"></i>天数 ↓
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('days-asc')"
+                    :class="{ 'active': sortMode === 'days-asc' }"
+                  >
+                    <i class="bi bi-calendar-date-fill me-2"></i>天数 ↑
+                  </a>
+                </li>
+              </ul>
             </div>
 
             <!-- 隐私显示切换按钮 -->
@@ -110,6 +184,72 @@
               >
                 <i class="bi bi-table"></i>
               </button>
+            </div>
+
+            <!-- 排序下拉菜单 -->
+            <div class="dropdown" ref="sortDropdownLargeRef">
+              <button
+                class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                type="button"
+                @click="toggleSortDropdown"
+                :title="getSortModeTitle()"
+              >
+                <i class="bi bi-sort-down"></i>
+              </button>
+              <ul class="dropdown-menu" :class="{ 'show': isSortDropdownOpen }">
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('default')"
+                    :class="{ 'active': sortMode === 'default' }"
+                  >
+                    <i class="bi bi-list me-2"></i>默认排序
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('credits-desc')"
+                    :class="{ 'active': sortMode === 'credits-desc' }"
+                  >
+                    <i class="bi bi-sort-numeric-down me-2"></i>次数 ↓
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('credits-asc')"
+                    :class="{ 'active': sortMode === 'credits-asc' }"
+                  >
+                    <i class="bi bi-sort-numeric-up me-2"></i>次数 ↑
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('days-desc')"
+                    :class="{ 'active': sortMode === 'days-desc' }"
+                  >
+                    <i class="bi bi-calendar-date me-2"></i>天数 ↓
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="setSortMode('days-asc')"
+                    :class="{ 'active': sortMode === 'days-asc' }"
+                  >
+                    <i class="bi bi-calendar-date-fill me-2"></i>天数 ↑
+                  </a>
+                </li>
+              </ul>
             </div>
 
             <!-- 隐私显示切换按钮 -->
@@ -917,7 +1057,15 @@
               </div>
             </div>
             <div class="text-muted small">
-              <strong>将要验证：</strong>{{ tokens.length }} 个Token<br>
+              <strong>将要验证：</strong>{{
+                isBatchSelectMode && selectedItems.size > 0
+                  ? `${tokens.filter(token => {
+                      if (selectedItems.has(token.id) || selectedItems.has(`token-${token.id}`)) return true;
+                      const boundCard = activationCards.find(card => card.bound_token_id === token.id);
+                      return boundCard && selectedItems.has(boundCard.id);
+                    }).length} 个选中的Token`
+                  : `${tokens.length} 个Token`
+              }}<br>
               <strong>验证方式：</strong>采用单线程验证方式，每个Token间隔500ms
             </div>
           </div>
@@ -1012,7 +1160,15 @@
               </div>
             </div>
             <div class="text-muted small">
-              <strong>将要刷新：</strong>{{ tokens.length }} 个Token<br>
+              <strong>将要刷新：</strong>{{
+                isBatchSelectMode && selectedItems.size > 0
+                  ? `${tokens.filter(token => {
+                      if (selectedItems.has(token.id) || selectedItems.has(`token-${token.id}`)) return true;
+                      const boundCard = activationCards.find(card => card.bound_token_id === token.id);
+                      return boundCard && selectedItems.has(boundCard.id);
+                    }).length} 个选中的Token`
+                  : `${tokens.length} 个Token`
+              }}<br>
               <strong>刷新方式：</strong>采用多线程刷新.
             </div>
           </div>
@@ -1627,6 +1783,9 @@
     :is-batch-refreshing="isBatchRefreshing"
     :show-batch-validate="true"
     :is-batch-validating="isBatchValidating"
+    :is-batch-select-mode="isBatchSelectMode"
+    :selected-count="selectedCount"
+    :is-loading="isLoading"
     @batch-refresh="showBatchRefreshConfirm"
     @batch-validate="validateAllTokens"
   />
@@ -1937,10 +2096,63 @@ const privacyMode = ref<boolean>(
   localStorage.getItem('comprehensive-manager-privacy-mode') === 'true'
 )
 
+// 排序模式 - 从本地存储读取，默认为'default'（不排序）
+const sortMode = ref<'default' | 'credits-desc' | 'credits-asc' | 'days-desc' | 'days-asc'>(
+  (localStorage.getItem('comprehensive-manager-sort-mode') as 'default' | 'credits-desc' | 'credits-asc' | 'days-desc' | 'days-asc') || 'default'
+)
+
+// 排序下拉菜单状态
+const isSortDropdownOpen = ref(false)
+const sortDropdownRef = ref<HTMLElement>()
+const sortDropdownLargeRef = ref<HTMLElement>()
+
 // 监听隐私模式变化，保存到本地存储
 watch(privacyMode, (newMode) => {
   localStorage.setItem('comprehensive-manager-privacy-mode', newMode.toString())
 }, { immediate: false })
+
+// 监听排序模式变化，保存到本地存储
+watch(sortMode, (newMode) => {
+  localStorage.setItem('comprehensive-manager-sort-mode', newMode)
+}, { immediate: false })
+
+// 排序下拉菜单控制
+const toggleSortDropdown = () => {
+  isSortDropdownOpen.value = !isSortDropdownOpen.value
+}
+
+const closeSortDropdown = () => {
+  isSortDropdownOpen.value = false
+}
+
+const setSortMode = (mode: 'default' | 'credits-desc' | 'credits-asc' | 'days-desc' | 'days-asc') => {
+  sortMode.value = mode
+  closeSortDropdown()
+}
+
+// 获取排序模式的显示文本
+const getSortModeText = () => {
+  switch (sortMode.value) {
+    case 'default': return '默认'
+    case 'credits-desc': return '次数↓'
+    case 'credits-asc': return '次数↑'
+    case 'days-desc': return '天数↓'
+    case 'days-asc': return '天数↑'
+    default: return '默认'
+  }
+}
+
+// 获取排序模式的标题提示
+const getSortModeTitle = () => {
+  switch (sortMode.value) {
+    case 'default': return '默认排序'
+    case 'credits-desc': return '按剩余次数排序 ↓'
+    case 'credits-asc': return '按剩余次数排序 ↑'
+    case 'days-desc': return '按剩余天数排序 ↓'
+    case 'days-asc': return '按剩余天数排序 ↑'
+    default: return '默认排序'
+  }
+}
 
 // 执行模态框状态
 const showExecuteModal = ref(false)
@@ -2104,38 +2316,65 @@ const allComprehensiveItems = computed(() => {
   })
 
   // 应用筛选
-  if (!activeFilter.value) {
-    return items
+  let filteredItems = items
+  if (activeFilter.value) {
+    filteredItems = items.filter(item => {
+      const token = item.bound_token
+      if (!token) return false
+
+      const tokenStatus = getTokenStatus(token)
+      const timeInfo = calculateRemainingTime(token)
+
+      switch (activeFilter.value) {
+        case '有效':
+          return tokenStatus === '正常'
+        case '即将到期':
+          return tokenStatus === '正常' && timeInfo.totalDays <= 2
+        case '已失效':
+          return ['失效', '暂停', '耗尽'].includes(tokenStatus)
+        case '绑定':
+          return item.type === 'activation' && item.bound_token_id && item.is_used
+        case '未使用':
+          // 空闲筛选：待使用的激活码 + 未生成激活码的Token + 状态为正常的
+          if (item.type === 'activation') {
+            // 激活码：未使用且状态正常
+            return !item.is_used && tokenStatus === '正常'
+          } else {
+            // Token：未生成激活码且状态正常
+            return item.type === 'token' && tokenStatus === '正常'
+          }
+        default:
+          return true
+      }
+    })
   }
 
-  return items.filter(item => {
-    const token = item.bound_token
-    if (!token) return false
+  // 应用排序
+  if (sortMode.value === 'default') {
+    return filteredItems
+  }
 
-    const tokenStatus = getTokenStatus(token)
-    const timeInfo = calculateRemainingTime(token)
+  return filteredItems.sort((a, b) => {
+    const tokenA = a.bound_token
+    const tokenB = b.bound_token
 
-    switch (activeFilter.value) {
-      case '有效':
-        return tokenStatus === '正常'
-      case '即将到期':
-        return tokenStatus === '正常' && timeInfo.totalDays <= 2
-      case '已失效':
-        return ['失效', '暂停', '耗尽'].includes(tokenStatus)
-      case '绑定':
-        return item.type === 'activation' && item.bound_token_id && item.is_used
-      case '未使用':
-        // 空闲筛选：待使用的激活码 + 未生成激活码的Token + 状态为正常的
-        if (item.type === 'activation') {
-          // 激活码：未使用且状态正常
-          return !item.is_used && tokenStatus === '正常'
-        } else {
-          // Token：未生成激活码且状态正常
-          return item.type === 'token' && tokenStatus === '正常'
-        }
-      default:
-        return true
+    if (!tokenA || !tokenB) return 0
+
+    if (sortMode.value.startsWith('credits')) {
+      // 按剩余次数排序
+      const creditsA = getRemainingCredits(tokenA)
+      const creditsB = getRemainingCredits(tokenB)
+      const numA = creditsA === '-' ? -1 : parseInt(creditsA) || 0
+      const numB = creditsB === '-' ? -1 : parseInt(creditsB) || 0
+      return sortMode.value === 'credits-desc' ? numB - numA : numA - numB
+    } else if (sortMode.value.startsWith('days')) {
+      // 按剩余天数排序
+      const timeInfoA = calculateRemainingTime(tokenA)
+      const timeInfoB = calculateRemainingTime(tokenB)
+      return sortMode.value === 'days-desc' ? timeInfoB.totalDays - timeInfoA.totalDays : timeInfoA.totalDays - timeInfoB.totalDays
     }
+
+    return 0
   })
 })
 
@@ -2607,10 +2846,26 @@ const confirmDeleteToken = async () => {
   }
 }
 
-// 验证所有Token
+// 验证Token（支持批量选择）
 const validateAllTokens = () => {
-  if (tokens.value.length === 0) {
-    toast.error('没有Token需要验证')
+  // 如果开启了批量选择模式且有选中项，则只验证选中的Token
+  const tokensToValidate = isBatchSelectMode.value && selectedItems.value.size > 0
+    ? tokens.value.filter(token => {
+        // 检查token.id或token-${token.id}是否被选中
+        if (selectedItems.value.has(token.id) || selectedItems.value.has(`token-${token.id}`)) {
+          return true
+        }
+        // 检查是否有绑定的激活码被选中
+        const boundCard = activationCards.value.find(card => card.bound_token_id === token.id)
+        return boundCard && selectedItems.value.has(boundCard.id)
+      })
+    : tokens.value
+
+  if (tokensToValidate.length === 0) {
+    const message = isBatchSelectMode.value && selectedItems.value.size === 0
+      ? '请选择要验证的Token'
+      : '没有Token需要验证'
+    toast.error(message)
     return
   }
 
@@ -2619,7 +2874,7 @@ const validateAllTokens = () => {
     valid: 0,
     invalid: 0,
     failed: 0,
-    total: tokens.value.length,
+    total: tokensToValidate.length,
     completed: 0
   }
 
@@ -2652,12 +2907,25 @@ const confirmBatchValidate = async () => {
 
   isBatchValidating.value = true
 
+  // 确定要验证的Token列表
+  const tokensToValidate = isBatchSelectMode.value && selectedItems.value.size > 0
+    ? tokens.value.filter(token => {
+        // 检查token.id或token-${token.id}是否被选中
+        if (selectedItems.value.has(token.id) || selectedItems.value.has(`token-${token.id}`)) {
+          return true
+        }
+        // 检查是否有绑定的激活码被选中
+        const boundCard = activationCards.value.find(card => card.bound_token_id === token.id)
+        return boundCard && selectedItems.value.has(boundCard.id)
+      })
+    : tokens.value
+
   // 重置结果
   batchValidateResults.value = {
     valid: 0,
     invalid: 0,
     failed: 0,
-    total: tokens.value.length,
+    total: tokensToValidate.length,
     completed: 0
   }
 
@@ -2732,13 +3000,13 @@ const confirmBatchValidate = async () => {
 
   // 单线程顺序验证，每个Token间隔500ms
   try {
-    for (let i = 0; i < tokens.value.length; i++) {
-      const token = tokens.value[i]
+    for (let i = 0; i < tokensToValidate.length; i++) {
+      const token = tokensToValidate[i]
 
       await processSingleResult(token)
 
       // 间隔500ms
-      if (i < tokens.value.length - 1) {
+      if (i < tokensToValidate.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500))
       }
     }
@@ -2818,8 +3086,24 @@ const confirmValidateToken = async () => {
 
 // 显示批量刷新确认
 const showBatchRefreshConfirm = () => {
-  if (tokens.value.length === 0) {
-    toast.error('没有Token需要刷新')
+  // 如果开启了批量选择模式且有选中项，则只刷新选中的Token
+  const tokensToRefresh = isBatchSelectMode.value && selectedItems.value.size > 0
+    ? tokens.value.filter(token => {
+        // 检查token.id或token-${token.id}是否被选中
+        if (selectedItems.value.has(token.id) || selectedItems.value.has(`token-${token.id}`)) {
+          return true
+        }
+        // 检查是否有绑定的激活码被选中
+        const boundCard = activationCards.value.find(card => card.bound_token_id === token.id)
+        return boundCard && selectedItems.value.has(boundCard.id)
+      })
+    : tokens.value
+
+  if (tokensToRefresh.length === 0) {
+    const message = isBatchSelectMode.value && selectedItems.value.size === 0
+      ? '请选择要刷新的Token'
+      : '没有Token需要刷新'
+    toast.error(message)
     return
   }
 
@@ -2849,11 +3133,24 @@ const confirmBatchRefresh = async () => {
 
   isBatchRefreshing.value = true
 
+  // 确定要刷新的Token列表
+  const tokensToRefresh = isBatchSelectMode.value && selectedItems.value.size > 0
+    ? tokens.value.filter(token => {
+        // 检查token.id或token-${token.id}是否被选中
+        if (selectedItems.value.has(token.id) || selectedItems.value.has(`token-${token.id}`)) {
+          return true
+        }
+        // 检查是否有绑定的激活码被选中
+        const boundCard = activationCards.value.find(card => card.bound_token_id === token.id)
+        return boundCard && selectedItems.value.has(boundCard.id)
+      })
+    : tokens.value
+
   // 重置结果
   batchRefreshResults.value = {
     success: 0,
     failed: 0,
-    total: tokens.value.length,
+    total: tokensToRefresh.length,
     completed: 0
   }
 
@@ -2895,10 +3192,10 @@ const confirmBatchRefresh = async () => {
   const MAX_CONCURRENT = 8 // 最大同时工作线程8个
 
   try {
-    // 将tokens分批处理
+    // 将tokensToRefresh分批处理
     const tokenBatches = []
-    for (let i = 0; i < tokens.value.length; i += BATCH_SIZE) {
-      tokenBatches.push(tokens.value.slice(i, i + BATCH_SIZE))
+    for (let i = 0; i < tokensToRefresh.length; i += BATCH_SIZE) {
+      tokenBatches.push(tokensToRefresh.slice(i, i + BATCH_SIZE))
     }
 
     // 控制最大并发数的处理函数
@@ -3237,10 +3534,20 @@ const confirmDelete = async () => {
   }
 }
 
+// 处理点击外部区域关闭下拉菜单
+const handleClickOutside = (event: Event) => {
+  if ((sortDropdownRef.value && !sortDropdownRef.value.contains(event.target as Node)) &&
+      (sortDropdownLargeRef.value && !sortDropdownLargeRef.value.contains(event.target as Node))) {
+    isSortDropdownOpen.value = false
+  }
+}
+
 // 页面挂载时加载数据
 onMounted(() => {
   loadTokens()
   loadActivationCards()
+  // 添加点击外部关闭下拉菜单的事件监听器
+  document.addEventListener('click', handleClickOutside)
 })
 
 // 获取Token相关方法
@@ -3680,6 +3987,8 @@ const executeApplication = async (app: any) => {
 onUnmounted(() => {
   stopCooldownTimer()
   stopCountdown()  // 清理URL倒计时
+  // 移除事件监听器
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 

@@ -1243,36 +1243,44 @@ const processHourlyData = (stats: any[]) => {
     }
   })
 
-  // 计算每小时的平均值
+  // 计算每小时的数据值
   const labels: string[] = []
   const validData: number[] = []
   const expiringData: number[] = []
   const invalidData: number[] = []
   const creditsData: number[] = []
 
+  // 获取最新的统计数据作为备用
+  let lastValidData = null
+  if (stats.length > 0) {
+    const sortedStats = [...stats].sort((a, b) =>
+      new Date(b.last_refresh_time).getTime() - new Date(a.last_refresh_time).getTime()
+    )
+    lastValidData = sortedStats[0]
+  }
+
   hours.forEach(hour => {
     labels.push(hour)
     const hourStats = hourlyData[hour]
 
     if (hourStats.length > 0) {
-      // 计算平均值
-      const avgValid = Math.round(hourStats.reduce((sum, stat) => sum + (stat.valid_count || 0), 0) / hourStats.length)
-      const avgExpiring = Math.round(hourStats.reduce((sum, stat) => sum + (stat.expiring_count || 0), 0) / hourStats.length)
-      const avgInvalid = Math.round(hourStats.reduce((sum, stat) => sum + (stat.invalid_count || 0), 0) / hourStats.length)
-      const avgCredits = Math.round(hourStats.reduce((sum, stat) => sum + (stat.total_credits_balance || 0), 0) / hourStats.length)
+      // 按时间排序，选择最新的数据
+      const sortedStats = [...hourStats].sort((a, b) =>
+        new Date(b.last_refresh_time).getTime() - new Date(a.last_refresh_time).getTime()
+      )
+      const latestStat = sortedStats[0]
 
-      validData.push(avgValid)
-      expiringData.push(avgExpiring)
-      invalidData.push(avgInvalid)
-      creditsData.push(avgCredits)
+      validData.push(latestStat.valid_count || 0)
+      expiringData.push(latestStat.expiring_count || 0)
+      invalidData.push(latestStat.invalid_count || 0)
+      creditsData.push(latestStat.total_credits_balance || 0)
     } else {
-      // 没有当前小时数据时，使用最近的有效数据
-      const lastValidIndex = validData.length - 1
-      if (lastValidIndex >= 0) {
-        validData.push(validData[lastValidIndex])
-        expiringData.push(expiringData[lastValidIndex])
-        invalidData.push(invalidData[lastValidIndex])
-        creditsData.push(creditsData[lastValidIndex])
+      // 没有当前小时数据时，使用最新的统计数据
+      if (lastValidData) {
+        validData.push(lastValidData.valid_count || 0)
+        expiringData.push(lastValidData.expiring_count || 0)
+        invalidData.push(lastValidData.invalid_count || 0)
+        creditsData.push(lastValidData.total_credits_balance || 0)
       } else {
         // 完全没有数据时才使用0
         validData.push(0)
@@ -1282,6 +1290,16 @@ const processHourlyData = (stats: any[]) => {
       }
     }
   })
+
+  // 直接使用最新的API数据更新当前统计
+  if (lastValidData) {
+    currentStats.value = {
+      validTokens: lastValidData.valid_count || 0,
+      expiringTokens: lastValidData.expiring_count || 0,
+      invalidTokens: lastValidData.invalid_count || 0,
+      totalCredits: lastValidData.total_credits_balance || 0
+    }
+  }
 
   updateChartData(labels, validData, expiringData, invalidData, creditsData)
 }
@@ -1310,36 +1328,59 @@ const processDailyData = (stats: any[]) => {
     }
   })
 
-  // 计算每天的平均值
+  // 计算每天的数据值
   const labels: string[] = []
   const validData: number[] = []
   const expiringData: number[] = []
   const invalidData: number[] = []
   const creditsData: number[] = []
 
+  // 获取最新的统计数据作为备用
+  let lastValidData = null
+  if (stats.length > 0) {
+    const sortedStats = [...stats].sort((a, b) =>
+      new Date(b.last_refresh_time).getTime() - new Date(a.last_refresh_time).getTime()
+    )
+    lastValidData = sortedStats[0]
+  }
+
   days.forEach(day => {
     labels.push(day)
     const dayStats = dailyData[day]
 
     if (dayStats.length > 0) {
-      // 有数据：计算当天平均数
-      const avgValid = Math.round(dayStats.reduce((sum, stat) => sum + (stat.valid_count || 0), 0) / dayStats.length)
-      const avgExpiring = Math.round(dayStats.reduce((sum, stat) => sum + (stat.expiring_count || 0), 0) / dayStats.length)
-      const avgInvalid = Math.round(dayStats.reduce((sum, stat) => sum + (stat.invalid_count || 0), 0) / dayStats.length)
-      const avgCredits = Math.round(dayStats.reduce((sum, stat) => sum + (stat.total_credits_balance || 0), 0) / dayStats.length)
-
-      validData.push(avgValid)
-      expiringData.push(avgExpiring)
-      invalidData.push(avgInvalid)
-      creditsData.push(avgCredits)
+      // 有数据时使用最新的数据点（而不是平均值）
+      const latestStat = dayStats[dayStats.length - 1]
+      validData.push(latestStat.valid_count || 0)
+      expiringData.push(latestStat.expiring_count || 0)
+      invalidData.push(latestStat.invalid_count || 0)
+      creditsData.push(latestStat.total_credits_balance || 0)
     } else {
-      // 没有数据：显示0
-      validData.push(0)
-      expiringData.push(0)
-      invalidData.push(0)
-      creditsData.push(0)
+      // 没有当天数据时，使用最新的统计数据
+      if (lastValidData) {
+        validData.push(lastValidData.valid_count || 0)
+        expiringData.push(lastValidData.expiring_count || 0)
+        invalidData.push(lastValidData.invalid_count || 0)
+        creditsData.push(lastValidData.total_credits_balance || 0)
+      } else {
+        // 完全没有数据时才使用0
+        validData.push(0)
+        expiringData.push(0)
+        invalidData.push(0)
+        creditsData.push(0)
+      }
     }
   })
+
+  // 直接使用最新的API数据更新当前统计
+  if (lastValidData) {
+    currentStats.value = {
+      validTokens: lastValidData.valid_count || 0,
+      expiringTokens: lastValidData.expiring_count || 0,
+      invalidTokens: lastValidData.invalid_count || 0,
+      totalCredits: lastValidData.total_credits_balance || 0
+    }
+  }
 
   updateChartData(labels, validData, expiringData, invalidData, creditsData)
 }
@@ -1375,49 +1416,28 @@ const updateChartData = (labels: string[], validData: number[], expiringData: nu
     ]
   }
 
-  // 更新当前统计数据（使用最新的数据点）
-  updateCurrentStats(validData, expiringData, invalidData, creditsData)
+  // 更新历史数据用于绘制曲线（不再更新currentStats，因为已在processHourlyData/processDailyData中直接设置）
+  updateMiniChartHistory(validData, expiringData, invalidData)
 }
 
-// 更新当前统计数据
-const updateCurrentStats = (validData: number[], expiringData: number[], invalidData: number[], creditsData: number[]) => {
-  // 查找最近的有效数据点（从最新往前找）
-  let validIndex = -1
-  for (let i = validData.length - 1; i >= 0; i--) {
-    if (validData[i] !== undefined && validData[i] !== null &&
-        expiringData[i] !== undefined && expiringData[i] !== null &&
-        invalidData[i] !== undefined && invalidData[i] !== null &&
-        creditsData[i] !== undefined && creditsData[i] !== null) {
-      validIndex = i
-      break
-    }
+// 更新迷你图表历史数据
+const updateMiniChartHistory = (validData: number[], expiringData: number[], invalidData: number[]) => {
+  // 更新历史数据用于绘制曲线（保留最近6个数据点）
+  const maxPoints = 6
+
+  // 取最近的数据点
+  const recentValid = validData.slice(-maxPoints)
+  const recentExpiring = expiringData.slice(-maxPoints)
+  const recentInvalid = invalidData.slice(-maxPoints)
+
+  miniChartHistory.value = {
+    valid: recentValid,
+    expiring: recentExpiring,
+    invalid: recentInvalid
   }
 
-  if (validIndex >= 0) {
-    currentStats.value = {
-      validTokens: validData[validIndex],
-      expiringTokens: expiringData[validIndex],
-      invalidTokens: invalidData[validIndex],
-      totalCredits: creditsData[validIndex]
-    }
-
-    // 更新历史数据用于绘制曲线（保留最近6个数据点）
-    const maxPoints = 6
-
-    // 取最近的数据点
-    const recentValid = validData.slice(-maxPoints)
-    const recentExpiring = expiringData.slice(-maxPoints)
-    const recentInvalid = invalidData.slice(-maxPoints)
-
-    miniChartHistory.value = {
-      valid: recentValid,
-      expiring: recentExpiring,
-      invalid: recentInvalid
-    }
-
-    // 更新曲线路径
-    updateMiniChartPaths()
-  }
+  // 更新曲线路径
+  updateMiniChartPaths()
 }
 
 // 更新mini图表的曲线路径

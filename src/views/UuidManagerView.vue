@@ -29,8 +29,22 @@
           </div>
         </div>
 
-        <!-- 操作按钮行 -->
+        <!-- 搜索和操作按钮行 -->
         <div class="row g-2 align-items-center mt-3">
+          <div class="col-auto">
+            <div class="input-group">
+              <input
+                type="text"
+                v-model="searchQuery"
+                class="form-control"
+                placeholder="搜索UUID..."
+                style="min-width: 200px;"
+              >
+              <span class="input-group-text">
+                <i class="bi bi-search"></i>
+              </span>
+            </div>
+          </div>
           <div class="col-auto ms-auto d-print-none">
             <div class="btn-list">
               <button @click="showAddUuidModal" class="btn btn-primary" title="添加 UUID">
@@ -70,7 +84,7 @@
                     暂无UUID数据
                   </td>
                 </tr>
-                <tr v-else v-for="uuid in uuids" :key="uuid.uuid">
+                <tr v-else v-for="uuid in uuids" :key="uuid.uuid" :class="{ 'table-danger': uuid.danger }">
                   <td class="text-muted font-monospace">{{ uuid.uuid }}</td>
                   <td>
                     <span :class="['badge', uuid.is_enabled ? 'bg-success text-white' : 'bg-danger text-white']">
@@ -86,6 +100,16 @@
                   </td>
                   <td>
                     <div class="btn-list flex-nowrap">
+                      <button
+                        @click="toggleUuidStatus(uuid)"
+                        :class="['btn', 'btn-sm', uuid.is_enabled ? 'btn-warning' : 'btn-success']"
+                        :disabled="isToggling && togglingUuid?.uuid === uuid.uuid"
+                        :title="uuid.is_enabled ? '禁用UUID' : '启用UUID'"
+                      >
+                        <span v-if="isToggling && togglingUuid?.uuid === uuid.uuid" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <i v-else :class="['bi', 'me-1', uuid.is_enabled ? 'bi-pause-fill' : 'bi-play-fill']"></i>
+                        {{ isToggling && togglingUuid?.uuid === uuid.uuid ? '切换中' : (uuid.is_enabled ? '禁用' : '启用') }}
+                      </button>
                       <button @click="showEditUuidModal(uuid)" class="btn btn-sm btn-info">
                         <i class="bi bi-pencil-fill me-1"></i>
                         编辑
@@ -99,6 +123,43 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+          <!-- 分页器 -->
+          <div class="card-footer d-flex align-items-center" v-if="pagination.total > 0">
+            <p class="m-0 text-muted">
+              显示第 {{ (pagination.page - 1) * pagination.limit + 1 }} 到
+              {{ Math.min(pagination.page * pagination.limit, pagination.total) }} 条，
+              共 {{ pagination.total }} 条记录
+            </p>
+            <ul class="pagination m-0 ms-auto">
+              <li :class="['page-item', !pagination.has_prev ? 'disabled' : '']">
+                <button
+                  class="page-link"
+                  @click="loadUuids(pagination.page - 1)"
+                  :disabled="!pagination.has_prev"
+                >
+                  <i class="bi bi-chevron-left"></i>
+                  上一页
+                </button>
+              </li>
+              <li
+                v-for="page in getPageNumbers()"
+                :key="page"
+                :class="['page-item', page === pagination.page ? 'active' : '']"
+              >
+                <button class="page-link" @click="loadUuids(page)">{{ page }}</button>
+              </li>
+              <li :class="['page-item', !pagination.has_next ? 'disabled' : '']">
+                <button
+                  class="page-link"
+                  @click="loadUuids(pagination.page + 1)"
+                  :disabled="!pagination.has_next"
+                >
+                  下一页
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -267,7 +328,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { toast } from '../utils/toast'
 import { PermissionManager } from '../types/permissions'
 
@@ -283,6 +344,7 @@ interface UuidItem {
   updated_at: string
   is_expired: boolean
   days_left: number
+  danger?: boolean
 }
 
 interface NewUuid {
@@ -306,7 +368,8 @@ interface Pagination {
 }
 
 // 响应式数据
-const uuids = ref<UuidItem[]>([])
+const allUuids = ref<UuidItem[]>([]) // 存储所有UUID数据
+const uuids = ref<UuidItem[]>([]) // 当前页显示的UUID数据
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteModal = ref(false)
@@ -320,18 +383,43 @@ const editingUuid = ref<EditingUuid>({
   is_enabled: true
 })
 const deletingUuid = ref<UuidItem | null>(null)
-const pagination = ref<Pagination>({
-  current_page: 1,
+const pagination = ref({
   has_next: false,
   has_prev: false,
-  page_size: 10,
-  total_pages: 1,
-  total_records: 0
+  limit: 12,
+  page: 1,
+  total: 0,
+  total_pages: 0
 })
 const isLoading = ref(false)
 const isCreating = ref(false)
 const isEditing = ref(false)
 const isDeleting = ref(false)
+const isToggling = ref(false)
+const togglingUuid = ref<UuidItem | null>(null)
+
+// 搜索功能
+const searchQuery = ref('')
+
+// 搜索过滤后的UUID列表
+const filteredUuids = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return allUuids.value
+  }
+
+  const query = searchQuery.value.toLowerCase().trim()
+  return allUuids.value.filter(uuid =>
+    uuid.uuid.toLowerCase().includes(query) ||
+    (uuid.key && uuid.key.toLowerCase().includes(query))
+  )
+})
+
+// 监听搜索查询变化，重新分页
+watch(searchQuery, () => {
+  if (allUuids.value.length > 0) {
+    updatePagination(1) // 搜索时重置到第一页
+  }
+}, { immediate: false })
 
 
 
@@ -342,22 +430,56 @@ onMounted(() => {
 
 // 方法
 const loadUuids = async (page: number = 1) => {
-  isLoading.value = true
+  // 如果已经有数据，只需要更新分页显示
+  if (allUuids.value.length > 0) {
+    updatePagination(page)
+    return
+  }
 
+  isLoading.value = true
   try {
-    const response = await fetch(`/api/uuids?page=${page}&limit=${pagination.value.page_size}`)
+    // 一次性加载所有数据
+    const response = await fetch('/api/uuids?limit=10000')
     const data = await response.json()
 
     if (data.success) {
-      uuids.value = data.data || []
-      pagination.value = data.pagination || pagination.value
+      const fetchedUuids = data.data || []
+      allUuids.value = fetchedUuids
+      updatePagination(page)
     } else {
-      uuids.value = []
+      toast.error(data.error || '获取UUID列表失败')
     }
   } catch (error) {
-    uuids.value = []
+    toast.error('网络错误，请重试')
   } finally {
     isLoading.value = false
+  }
+}
+
+// 更新前端分页显示
+const updatePagination = (page: number) => {
+  const total = filteredUuids.value.length
+  const limit = pagination.value.limit
+  const totalPages = Math.ceil(total / limit) || 1
+
+  // 确保页码在有效范围内
+  const currentPage = Math.max(1, Math.min(page, totalPages))
+
+  // 计算当前页的数据范围
+  const startIndex = (currentPage - 1) * limit
+  const endIndex = Math.min(startIndex + limit, total)
+
+  // 更新显示的UUID数据
+  uuids.value = filteredUuids.value.slice(startIndex, endIndex)
+
+  // 更新分页信息
+  pagination.value = {
+    has_next: currentPage < totalPages,
+    has_prev: currentPage > 1,
+    limit: limit,
+    page: currentPage,
+    total: total,
+    total_pages: totalPages
   }
 }
 
@@ -371,6 +493,22 @@ const formatDateTime = (dateString: string): string => {
     minute: '2-digit',
     second: '2-digit'
   })
+}
+
+const getPageNumbers = (): number[] => {
+  const pages: number[] = []
+  const totalPages = pagination.value.total_pages
+  const currentPage = pagination.value.page
+
+  // 显示当前页前后2页
+  const start = Math.max(1, currentPage - 2)
+  const end = Math.min(totalPages, currentPage + 2)
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+
+  return pages
 }
 
 const showAddUuidModal = () => {
@@ -409,7 +547,8 @@ const addUuid = async () => {
       toast.success(data.message || 'UUID创建成功')
 
       // 重新加载UUID列表
-      await loadUuids(pagination.value.current_page)
+      allUuids.value = [] // 清空缓存
+      await loadUuids(pagination.value.page)
 
       closeAddModal()
     } else {
@@ -480,7 +619,8 @@ const updateUuid = async () => {
       toast.success(data.message || 'UUID更新成功')
 
       // 重新加载UUID列表
-      await loadUuids(pagination.value.current_page)
+      allUuids.value = [] // 清空缓存
+      await loadUuids(pagination.value.page)
 
       closeEditModal()
     } else {
@@ -521,7 +661,8 @@ const confirmDelete = async () => {
       toast.success(data.message || 'UUID删除成功')
 
       // 重新加载UUID列表
-      await loadUuids(pagination.value.current_page)
+      allUuids.value = [] // 清空缓存
+      await loadUuids(pagination.value.page)
 
       closeDeleteModal()
     } else {
@@ -531,6 +672,47 @@ const confirmDelete = async () => {
     toast.error('网络错误，请重试')
   } finally {
     isDeleting.value = false
+  }
+}
+
+// 快速切换UUID启用/禁用状态
+const toggleUuidStatus = async (uuid: UuidItem) => {
+  isToggling.value = true
+  togglingUuid.value = uuid
+
+  try {
+    const response = await fetch(`/api/uuids/${uuid.uuid}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        is_enabled: !uuid.is_enabled,
+        expires_at: uuid.expires_at
+      })
+    })
+
+    const data = await response.json()
+
+    if (data.success) {
+      // 直接更新本地数据，避免重新加载
+      const index = allUuids.value.findIndex(u => u.uuid === uuid.uuid)
+      if (index !== -1) {
+        allUuids.value[index].is_enabled = !uuid.is_enabled
+      }
+
+      // 更新当前页显示
+      updatePagination(pagination.value.page)
+
+      toast.success(`UUID已${!uuid.is_enabled ? '启用' : '禁用'}`)
+    } else {
+      toast.error(data.error || data.message || 'UUID状态切换失败')
+    }
+  } catch (error) {
+    toast.error('网络错误，请重试')
+  } finally {
+    isToggling.value = false
+    togglingUuid.value = null
   }
 }
 
@@ -545,5 +727,17 @@ const deleteUuid = (uuid: UuidItem) => {
 </script>
 
 <style scoped>
-/* 使用 Tabler 的默认样式，无需额外自定义 */
+/* 危险UUID行样式 */
+.table-danger {
+  background-color: rgba(220, 53, 69, 0.1) !important;
+  border-left: 4px solid #dc3545;
+}
+
+.table-danger:hover {
+  background-color: rgba(220, 53, 69, 0.15) !important;
+}
+
+.table-danger td {
+  border-color: rgba(220, 53, 69, 0.2);
+}
 </style>

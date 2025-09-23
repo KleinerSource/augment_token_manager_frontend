@@ -983,6 +983,20 @@
                   placeholder="请输入邮箱或备注信息（可选）"
                 >
               </div>
+              <div class="mb-3">
+                <label class="form-label">随机切号</label>
+                <div class="form-check form-switch">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    id="allowNormalCard"
+                    v-model="editingToken.allow_normal_cards"
+                  >
+                  <label class="form-check-label" for="allowNormalCard">
+                    开启后允许进入随机切号列表
+                  </label>
+                </div>
+              </div>
             </form>
           </div>
           <div class="modal-footer">
@@ -1850,7 +1864,8 @@ const editingToken = ref<any>({
   tenant_url: '',
   access_token: '',
   portal_url: '',
-  email_note: ''
+  email_note: '',
+  allow_normal_cards: true
 })
 const deletingToken = ref<any>(null)
 const isBatchRefreshing = ref(false)
@@ -2571,10 +2586,6 @@ const formatActivationCode = (code: string): string => {
   if (!code) return ''
 
   if (!privacyMode.value) {
-    // 非隐私模式：显示前4位和后4位，中间用*代替
-    if (code.length > 8) {
-      return `${code.substring(0, 4)}****${code.substring(code.length - 4)}`
-    }
     return code
   } else {
     // 隐私模式：只显示前4个字符和后4个字符，中间用*代替
@@ -2763,7 +2774,8 @@ const editBoundToken = async (item: any) => {
         tenant_url: response.data.tenant_url,
         access_token: response.data.access_token,
         portal_url: response.data.portal_url,
-        email_note: response.data.email_note
+        email_note: response.data.email_note,
+        allow_normal_cards: response.data.allow_normal_cards !== false // 默认为true，除非明确设置为false
       }
       showEditTokenModal.value = true
     } else {
@@ -2781,7 +2793,8 @@ const closeEditTokenModal = () => {
     tenant_url: '',
     access_token: '',
     portal_url: '',
-    email_note: ''
+    email_note: '',
+    allow_normal_cards: true
   }
 }
 
@@ -2797,7 +2810,8 @@ const updateToken = async () => {
       tenant_url: editingToken.value.tenant_url,
       access_token: editingToken.value.access_token,
       portal_url: editingToken.value.portal_url,
-      email_note: editingToken.value.email_note
+      email_note: editingToken.value.email_note,
+      allow_normal_cards: editingToken.value.allow_normal_cards
     }
 
     const response = await apiPut(`/api/tokens/${editingToken.value.id}`, requestData)
@@ -3581,6 +3595,23 @@ const showGetTokenModal = () => {
 
 const closeGetModal = () => {
   stopCountdown()  // 停止URL倒计时
+
+  // 重置所有获取Token相关的状态
+  getTokenStep.value = 1
+  authUrl.value = ''
+  authResponse.value = ''
+  authResponseError.value = ''
+  portalUrl.value = ''
+  emailNote.value = ''
+  isValidatingResponse.value = false
+  isSavingToken.value = false
+  tokenData.value = {
+    tenant_url: '',
+    access_token: '',
+    email: '',
+    portal_url: ''
+  }
+
   showGetModal.value = false
 }
 

@@ -1137,47 +1137,7 @@ const getCurrentHourString = (): string => {
   return `${year}-${month}-${day}-${hour}`
 }
 
-// 获取最近24小时的时间点
-const getLast24Hours = (): string[] => {
-  const hours: string[] = []
-  const now = new Date()
 
-  for (let i = 23; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * 60 * 60 * 1000)
-    const year = time.getFullYear()
-    const month = String(time.getMonth() + 1).padStart(2, '0')
-    const day = String(time.getDate()).padStart(2, '0')
-    const hour = String(time.getHours()).padStart(2, '0')
-    hours.push(`${year}-${month}-${day}-${hour}`)
-  }
-
-  return hours
-}
-
-// 获取最近7天的时间点
-const getLast7Days = (): string[] => {
-  const days: string[] = []
-  const now = new Date()
-
-  for (let i = 6; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-    const year = time.getFullYear()
-    const month = String(time.getMonth() + 1).padStart(2, '0')
-    const day = String(time.getDate()).padStart(2, '0')
-    days.push(`${year}-${month}-${day}`)
-  }
-
-  return days
-}
-
-// 根据缩放级别获取时间范围
-const getTimeRange = (): string[] => {
-  if (zoomLevel.value === '1day') {
-    return getLast24Hours()
-  } else {
-    return getLast7Days()
-  }
-}
 
 
 
@@ -1191,196 +1151,90 @@ const loadStatsFromAPI = async () => {
     if (response.success && response.data && response.data.stats) {
       const stats = response.data.stats || []
 
-      if (zoomLevel.value === '1day') {
-        // 1天视图：按小时处理数据
-        processHourlyData(stats)
-      } else {
-        // 7天视图：按天处理数据
-        processDailyData(stats)
-      }
+      // 直接处理API返回的数据
+      processStatsData(stats)
     } else {
       // 没有数据时设置默认值
-      currentStats.value = {
-        validTokens: 0,
-        expiringTokens: 0,
-        invalidTokens: 0,
-        totalCredits: 0
-      }
+      setDefaultStats()
     }
   } catch (error) {
     console.error('加载统计数据失败:', error)
     // 错误时也设置默认值
-    currentStats.value = {
-      validTokens: 0,
-      expiringTokens: 0,
-      invalidTokens: 0,
-      totalCredits: 0
-    }
+    setDefaultStats()
   }
 }
 
-// 处理1天视图的小时数据
-const processHourlyData = (stats: any[]) => {
-  // 生成最近24小时的时间点
-  const hours: string[] = []
-  const hourlyData: { [key: string]: any[] } = {}
-  const now = new Date()
-
-  // 生成24小时的时间点（从24小时前到现在）
-  for (let i = 23; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * 60 * 60 * 1000)
-    const hourKey = `${time.getHours().toString().padStart(2, '0')}:00`
-    hours.push(hourKey)
-    hourlyData[hourKey] = []
+// 设置默认统计数据
+const setDefaultStats = () => {
+  currentStats.value = {
+    validTokens: 0,
+    expiringTokens: 0,
+    invalidTokens: 0,
+    totalCredits: 0
   }
 
-  // 将API数据按小时分组
-  stats.forEach((stat: any) => {
-    const time = new Date(stat.last_refresh_time)
-    const hourKey = `${time.getHours().toString().padStart(2, '0')}:00`
-    if (hourlyData[hourKey]) {
-      hourlyData[hourKey].push(stat)
+  // 清空图表数据
+  const emptyLabels: string[] = []
+  const emptyData: number[] = []
+
+  if (zoomLevel.value === '1day') {
+    // 生成24小时标签
+    for (let i = 23; i >= 0; i--) {
+      const time = new Date(Date.now() - i * 60 * 60 * 1000)
+      emptyLabels.push(`${time.getHours().toString().padStart(2, '0')}:00`)
+      emptyData.push(0)
     }
-  })
-
-  // 计算每小时的数据值
-  const labels: string[] = []
-  const validData: number[] = []
-  const expiringData: number[] = []
-  const invalidData: number[] = []
-  const creditsData: number[] = []
-
-  // 获取最新的统计数据作为备用
-  let lastValidData = null
-  if (stats.length > 0) {
-    const sortedStats = [...stats].sort((a, b) =>
-      new Date(b.last_refresh_time).getTime() - new Date(a.last_refresh_time).getTime()
-    )
-    lastValidData = sortedStats[0]
-  }
-
-  hours.forEach(hour => {
-    labels.push(hour)
-    const hourStats = hourlyData[hour]
-
-    if (hourStats.length > 0) {
-      // 按时间排序，选择最新的数据
-      const sortedStats = [...hourStats].sort((a, b) =>
-        new Date(b.last_refresh_time).getTime() - new Date(a.last_refresh_time).getTime()
-      )
-      const latestStat = sortedStats[0]
-
-      validData.push(latestStat.valid_count || 0)
-      expiringData.push(latestStat.expiring_count || 0)
-      invalidData.push(latestStat.invalid_count || 0)
-      creditsData.push(latestStat.total_credits_balance || 0)
-    } else {
-      // 没有当前小时数据时，使用最新的统计数据
-      if (lastValidData) {
-        validData.push(lastValidData.valid_count || 0)
-        expiringData.push(lastValidData.expiring_count || 0)
-        invalidData.push(lastValidData.invalid_count || 0)
-        creditsData.push(lastValidData.total_credits_balance || 0)
-      } else {
-        // 完全没有数据时才使用0
-        validData.push(0)
-        expiringData.push(0)
-        invalidData.push(0)
-        creditsData.push(0)
-      }
-    }
-  })
-
-  // 直接使用最新的API数据更新当前统计
-  if (lastValidData) {
-    currentStats.value = {
-      validTokens: lastValidData.valid_count || 0,
-      expiringTokens: lastValidData.expiring_count || 0,
-      invalidTokens: lastValidData.invalid_count || 0,
-      totalCredits: lastValidData.total_credits_balance || 0
+  } else {
+    // 生成7天标签
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+      emptyLabels.push(`${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`)
+      emptyData.push(0)
     }
   }
 
-  updateChartData(labels, validData, expiringData, invalidData, creditsData)
+  updateChartData(emptyLabels, emptyData, emptyData, emptyData, emptyData)
 }
 
-// 处理7天视图的每日数据（固定最近7天）
-const processDailyData = (stats: any[]) => {
-  // 生成固定的最近7天日期
-  const days: string[] = []
-  const dailyData: { [key: string]: any[] } = {}
-  const now = new Date()
-
-  // 生成固定7天的日期（从7天前到今天）
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-    const dayKey = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
-    days.push(dayKey)
-    dailyData[dayKey] = []
+// 处理统计数据
+const processStatsData = (stats: any[]) => {
+  if (stats.length === 0) {
+    setDefaultStats()
+    return
   }
 
-  // 将API数据按天分组
-  stats.forEach((stat: any) => {
+  // 获取最新的统计数据用于当前状态显示（第一个元素是最新的）
+  const latestStat = stats[0]
+
+  // 更新当前统计数据
+  currentStats.value = {
+    validTokens: latestStat.valid_count || 0,
+    expiringTokens: latestStat.expiring_count || 0,
+    invalidTokens: latestStat.invalid_count || 0,
+    totalCredits: latestStat.total_credits_balance || 0
+  }
+
+  // 处理图表数据 - 反转数组让时间从左到右
+  const reversedStats = [...stats].reverse()
+  processChartData(reversedStats)
+}
+
+// 处理图表数据（统一处理1天和7天视图）
+const processChartData = (stats: any[]) => {
+  if (stats.length === 0) return
+
+  // 准备数据 - 直接使用API返回的数据，按照参考代码的方式
+  const labels = stats.map(stat => {
     const date = new Date(stat.last_refresh_time)
-    const dayKey = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
-    if (dailyData[dayKey]) {
-      dailyData[dayKey].push(stat)
-    }
+    return zoomLevel.value === '1day'
+      ? `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+      : `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
   })
 
-  // 计算每天的数据值
-  const labels: string[] = []
-  const validData: number[] = []
-  const expiringData: number[] = []
-  const invalidData: number[] = []
-  const creditsData: number[] = []
-
-  // 获取最新的统计数据作为备用
-  let lastValidData = null
-  if (stats.length > 0) {
-    const sortedStats = [...stats].sort((a, b) =>
-      new Date(b.last_refresh_time).getTime() - new Date(a.last_refresh_time).getTime()
-    )
-    lastValidData = sortedStats[0]
-  }
-
-  days.forEach(day => {
-    labels.push(day)
-    const dayStats = dailyData[day]
-
-    if (dayStats.length > 0) {
-      // 有数据时使用最新的数据点（而不是平均值）
-      const latestStat = dayStats[dayStats.length - 1]
-      validData.push(latestStat.valid_count || 0)
-      expiringData.push(latestStat.expiring_count || 0)
-      invalidData.push(latestStat.invalid_count || 0)
-      creditsData.push(latestStat.total_credits_balance || 0)
-    } else {
-      // 没有当天数据时，使用最新的统计数据
-      if (lastValidData) {
-        validData.push(lastValidData.valid_count || 0)
-        expiringData.push(lastValidData.expiring_count || 0)
-        invalidData.push(lastValidData.invalid_count || 0)
-        creditsData.push(lastValidData.total_credits_balance || 0)
-      } else {
-        // 完全没有数据时才使用0
-        validData.push(0)
-        expiringData.push(0)
-        invalidData.push(0)
-        creditsData.push(0)
-      }
-    }
-  })
-
-  // 直接使用最新的API数据更新当前统计
-  if (lastValidData) {
-    currentStats.value = {
-      validTokens: lastValidData.valid_count || 0,
-      expiringTokens: lastValidData.expiring_count || 0,
-      invalidTokens: lastValidData.invalid_count || 0,
-      totalCredits: lastValidData.total_credits_balance || 0
-    }
-  }
+  const validData = stats.map(stat => stat.valid_count || 0)
+  const expiringData = stats.map(stat => stat.expiring_count || 0)
+  const invalidData = stats.map(stat => stat.invalid_count || 0)
+  const creditsData = stats.map(stat => stat.total_credits_balance || 0)
 
   updateChartData(labels, validData, expiringData, invalidData, creditsData)
 }
@@ -1416,7 +1270,7 @@ const updateChartData = (labels: string[], validData: number[], expiringData: nu
     ]
   }
 
-  // 更新历史数据用于绘制曲线（不再更新currentStats，因为已在processHourlyData/processDailyData中直接设置）
+  // 更新历史数据用于绘制曲线
   updateMiniChartHistory(validData, expiringData, invalidData)
 }
 

@@ -645,6 +645,20 @@
                   placeholder="请输入邮箱或备注信息（可选）"
                 >
               </div>
+              <div class="mb-3">
+                <label class="form-label">随机切号</label>
+                <div class="form-check form-switch">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    id="allowNormalCardToken"
+                    v-model="editingToken.allow_normal_cards"
+                  >
+                  <label class="form-check-label" for="allowNormalCardToken">
+                    开启后允许进入随机切号列表
+                  </label>
+                </div>
+              </div>
             </form>
           </div>
           <div class="modal-footer">
@@ -1505,11 +1519,13 @@ const editingToken = ref<{
   access_token: string
   portal_url: string
   email_note: string
+  allow_normal_cards: boolean
 }>({
   tenant_url: '',
   access_token: '',
   portal_url: '',
-  email_note: ''
+  email_note: '',
+  allow_normal_cards: true
 })
 const deletingToken = ref<Token | null>(null)
 
@@ -2150,6 +2166,23 @@ const showGetTokenModal = () => {
 
 const closeGetModal = () => {
   stopCountdown()  // 停止URL倒计时
+
+  // 重置所有获取Token相关的状态
+  getTokenStep.value = 1
+  authUrl.value = ''
+  authResponse.value = ''
+  authResponseError.value = ''
+  portalUrl.value = ''
+  emailNote.value = ''
+  isValidatingResponse.value = false
+  isSavingToken.value = false
+  tokenData.value = {
+    tenant_url: '',
+    access_token: '',
+    email: '',
+    portal_url: ''
+  }
+
   showGetModal.value = false
 }
 
@@ -2606,7 +2639,8 @@ const showEditTokenModal = async (token: Token) => {
         tenant_url: data.data.tenant_url,
         access_token: data.data.access_token,
         portal_url: data.data.portal_url,
-        email_note: data.data.email_note
+        email_note: data.data.email_note,
+        allow_normal_cards: data.data.allow_normal_cards !== false // 默认为true，除非明确设置为false
       }
       showEditModal.value = true
     } else {
@@ -2623,7 +2657,8 @@ const closeEditModal = () => {
     tenant_url: '',
     access_token: '',
     portal_url: '',
-    email_note: ''
+    email_note: '',
+    allow_normal_cards: true
   }
 }
 
@@ -2648,7 +2683,8 @@ const updateToken = async () => {
         tenant_url: editingToken.value.tenant_url,
         access_token: editingToken.value.access_token,
         portal_url: editingToken.value.portal_url,
-        email_note: editingToken.value.email_note
+        email_note: editingToken.value.email_note,
+        allow_normal_cards: editingToken.value.allow_normal_cards
       })
     })
 
